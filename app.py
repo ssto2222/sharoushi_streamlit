@@ -1,0 +1,791 @@
+import streamlit as st
+import json
+import random
+from pathlib import Path
+from datetime import datetime
+
+# ── ページ設定 ──────────────────────────────────────────
+st.set_page_config(
+    page_title="社労士 学習アプリ",
+    page_icon="📚",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+# ── カスタムCSS ──────────────────────────────────────────
+st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap');
+
+html, body, [class*="css"] { font-family: 'Noto Sans JP', sans-serif; }
+
+/* 全体背景 */
+.stApp { background-color: #0e0e16; }
+section[data-testid="stSidebar"] { background-color: #12121c !important; border-right: 1px solid rgba(255,255,255,0.07); }
+section[data-testid="stSidebar"] * { color: #c8c8d8 !important; }
+
+/* メトリクスカード */
+[data-testid="metric-container"] {
+    background: #1a1a28;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 16px !important;
+}
+[data-testid="metric-container"] label { color: #7070a0 !important; font-size: 11px !important; letter-spacing: 1px; }
+[data-testid="metric-container"] [data-testid="stMetricValue"] { color: #e0e0f0 !important; font-family: 'DM Mono', monospace !important; }
+
+/* ボタン */
+.stButton > button {
+    background: #7c6af5 !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 10px !important;
+    font-family: 'Noto Sans JP', sans-serif !important;
+    font-weight: 500 !important;
+    padding: 10px 24px !important;
+    transition: all 0.2s !important;
+}
+.stButton > button:hover { background: #9580ff !important; transform: translateY(-1px) !important; }
+
+/* セカンダリボタン */
+.btn-secondary > button {
+    background: #1e1e30 !important;
+    border: 1px solid rgba(255,255,255,0.12) !important;
+    color: #c0c0d8 !important;
+}
+.btn-secondary > button:hover { border-color: #7c6af5 !important; color: white !important; }
+
+/* 問題カード */
+.question-card {
+    background: #16162a;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px;
+    padding: 28px 32px;
+    margin-bottom: 20px;
+}
+.question-number {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: #6060a0;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+}
+.question-text { font-size: 17px; line-height: 1.9; color: #e8e8f8; font-weight: 400; }
+
+/* 正解・不正解 */
+.correct-box {
+    background: rgba(46,204,113,0.1);
+    border: 1px solid rgba(46,204,113,0.4);
+    border-radius: 10px;
+    padding: 16px 20px;
+    color: #2ecc71;
+    font-weight: 500;
+    margin: 12px 0;
+}
+.wrong-box {
+    background: rgba(231,76,60,0.1);
+    border: 1px solid rgba(231,76,60,0.4);
+    border-radius: 10px;
+    padding: 16px 20px;
+    color: #e74c3c;
+    font-weight: 500;
+    margin: 12px 0;
+}
+.explanation-box {
+    background: #1a1a2e;
+    border: 1px solid rgba(255,255,255,0.06);
+    border-left: 3px solid #7c6af5;
+    border-radius: 0 10px 10px 0;
+    padding: 18px 20px;
+    color: #a0a0c8;
+    font-size: 14px;
+    line-height: 1.9;
+    margin-top: 14px;
+}
+.explanation-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: #7c6af5;
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+}
+
+/* 進捗バー */
+.progress-outer {
+    background: #1e1e30;
+    border-radius: 4px;
+    height: 6px;
+    margin: 6px 0 10px;
+    overflow: hidden;
+}
+.progress-inner {
+    height: 100%;
+    border-radius: 4px;
+    background: linear-gradient(90deg, #7c6af5, #a594ff);
+    transition: width 0.4s ease;
+}
+.progress-inner-green { background: linear-gradient(90deg, #27ae60, #2ecc71); }
+
+/* 科目カード */
+.subject-card {
+    background: #16162a;
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+.subject-card:hover { border-color: #7c6af5; }
+.subject-tag {
+    display: inline-block;
+    background: rgba(124,106,245,0.15);
+    color: #a594ff;
+    font-size: 10px;
+    font-family: 'DM Mono', monospace;
+    padding: 3px 10px;
+    border-radius: 4px;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+}
+.wrong-tag {
+    display: inline-block;
+    background: rgba(231,76,60,0.1);
+    color: #e74c3c;
+    font-size: 10px;
+    font-family: 'DM Mono', monospace;
+    padding: 3px 10px;
+    border-radius: 20px;
+    margin-left: 8px;
+}
+
+/* 選択肢ラジオ */
+.stRadio > div { gap: 8px !important; }
+.stRadio > div > label {
+    background: #1a1a2e !important;
+    border: 1px solid rgba(255,255,255,0.08) !important;
+    border-radius: 10px !important;
+    padding: 14px 18px !important;
+    width: 100% !important;
+    color: #c8c8e8 !important;
+    transition: all 0.15s !important;
+    font-size: 14px !important;
+    line-height: 1.6 !important;
+}
+.stRadio > div > label:hover { border-color: #7c6af5 !important; background: rgba(124,106,245,0.08) !important; }
+
+/* ヘッダー */
+h1 { color: #e8e8f8 !important; font-weight: 700 !important; letter-spacing: -0.5px !important; }
+h2, h3 { color: #d0d0e8 !important; font-weight: 500 !important; }
+p, li { color: #9090b8 !important; }
+
+/* divider */
+hr { border-color: rgba(255,255,255,0.07) !important; }
+
+/* ログ / コードブロック */
+.log-box {
+    background: #0e0e16;
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 8px;
+    padding: 14px;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: #7070a0;
+    max-height: 200px;
+    overflow-y: auto;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# ── 定数 ──────────────────────────────────────────────
+SUBJECTS = [
+    {"id": "roki",    "name": "労働基準法",             "short": "労基"},
+    {"id": "roan",    "name": "労働安全衛生法",           "short": "労安"},
+    {"id": "rosai",   "name": "労働者災害補償保険法",      "short": "労災"},
+    {"id": "koyo",    "name": "雇用保険法",               "short": "雇用"},
+    {"id": "choshu",  "name": "労働保険徴収法",           "short": "徴収"},
+    {"id": "kenpo",   "name": "健康保険法",               "short": "健保"},
+    {"id": "kokunen", "name": "国民年金法",               "short": "国年"},
+    {"id": "konen",   "name": "厚生年金保険法",           "short": "厚年"},
+    {"id": "shaichi", "name": "社会保険一般常識",          "short": "社一"},
+]
+SUBJECT_MAP = {s["id"]: s for s in SUBJECTS}
+DATA_DIR = Path(__file__).parent / "data"
+QUESTIONS_FILE = DATA_DIR / "questions.json"
+PROGRESS_FILE = DATA_DIR / "progress.json"
+SESSION_FILE = DATA_DIR / "session.json"
+DATA_DIR.mkdir(exist_ok=True)
+
+# ── データ I/O ─────────────────────────────────────────
+@st.cache_data(ttl=1)
+def load_questions() -> list[dict]:
+    if QUESTIONS_FILE.exists():
+        return json.loads(QUESTIONS_FILE.read_text(encoding="utf-8"))
+    return []
+
+def save_questions(qs: list[dict]):
+    QUESTIONS_FILE.write_text(json.dumps(qs, ensure_ascii=False, indent=2), encoding="utf-8")
+    load_questions.clear()
+
+def load_progress() -> dict:
+    if PROGRESS_FILE.exists():
+        return json.loads(PROGRESS_FILE.read_text(encoding="utf-8"))
+    return {}
+
+def save_progress(prog: dict):
+    PROGRESS_FILE.write_text(json.dumps(prog, ensure_ascii=False, indent=2), encoding="utf-8")
+
+def load_session() -> dict:
+    if SESSION_FILE.exists():
+        return json.loads(SESSION_FILE.read_text(encoding="utf-8"))
+    return {}
+
+def save_session(sess: dict):
+    SESSION_FILE.write_text(json.dumps(sess, ensure_ascii=False, indent=2), encoding="utf-8")
+
+def clear_session(key: str):
+    sess = load_session()
+    sess.pop(key, None)
+    save_session(sess)
+
+# ── ユーティリティ ────────────────────────────────────
+def get_subject_stats(subject_id: str, questions: list, progress: dict) -> dict:
+    qs = [q for q in questions if q["subject"] == subject_id]
+    total = len(qs)
+    answered = sum(1 for q in qs if q["id"] in progress)
+    correct = sum(1 for q in qs if progress.get(q["id"], {}).get("correct", False))
+    wrong = sum(1 for q in qs if not progress.get(q["id"], {}).get("correct", False)
+                and progress.get(q["id"], {}).get("wrong_count", 0) > 0)
+    rate = round(correct / answered * 100) if answered > 0 else 0
+    return {"total": total, "answered": answered, "correct": correct, "wrong": wrong, "rate": rate}
+
+def get_wrong_questions(questions: list, progress: dict, subject_id: str = None) -> list:
+    result = []
+    for q in questions:
+        p = progress.get(q["id"], {})
+        if p.get("wrong_count", 0) > 0 and not p.get("correct", False):
+            if subject_id is None or q["subject"] == subject_id:
+                result.append(q)
+    return result
+
+# ── セッション state 初期化 ───────────────────────────
+def init_state():
+    defaults = {
+        "page": "home",          # home / quiz / result / wrong / generate
+        "quiz_questions": [],
+        "quiz_index": 0,
+        "quiz_score": 0,
+        "quiz_subject": None,
+        "quiz_mode": None,       # all / wrong / single
+        "answered": False,
+        "selected_option": None,
+        "api_key": "",
+        "gen_log": [],
+    }
+    for k, v in defaults.items():
+        if k not in st.session_state:
+            st.session_state[k] = v
+
+init_state()
+
+# ── サイドバー ────────────────────────────────────────
+def render_sidebar(questions, progress):
+    with st.sidebar:
+        st.markdown("## 📚 社労士 Study")
+        st.caption("SR EXAM TRAINER")
+        st.divider()
+
+        # ナビゲーション
+        if st.button("🏠  ダッシュボード", use_container_width=True):
+            st.session_state.page = "home"
+            st.rerun()
+
+        wrong_count = len(get_wrong_questions(questions, progress))
+        wrong_label = f"⚠️  間違えた問題　`{wrong_count}`" if wrong_count > 0 else "⚠️  間違えた問題"
+        if st.button(wrong_label, use_container_width=True):
+            st.session_state.page = "wrong"
+            st.rerun()
+
+        if st.button("✨  問題を生成・追加", use_container_width=True):
+            st.session_state.page = "generate"
+            st.rerun()
+
+        st.divider()
+        st.caption("科目別")
+
+        for s in SUBJECTS:
+            stats = get_subject_stats(s["id"], questions, progress)
+            label = f"**{s['short']}**　{stats['answered']}/{stats['total']}"
+            if stats["wrong"] > 0:
+                label += f"　🔴{stats['wrong']}"
+            if st.button(label, key=f"nav_{s['id']}", use_container_width=True):
+                start_quiz(s["id"], "all", questions, progress)
+                st.rerun()
+
+        st.divider()
+        st.caption("💾 データはローカルに保存されます")
+
+
+# ── クイズ開始 ────────────────────────────────────────
+def start_quiz(subject_id: str, mode: str, questions: list, progress: dict):
+    if mode == "wrong":
+        qs = get_wrong_questions(questions, progress, subject_id if subject_id != "all" else None)
+    elif subject_id == "all":
+        qs = questions[:]
+    else:
+        qs = [q for q in questions if q["subject"] == subject_id]
+
+    if not qs:
+        st.warning("この条件の問題がありません。")
+        return
+
+    random.shuffle(qs)
+
+    # 前回セッション確認
+    session_key = f"{subject_id}_{mode}"
+    saved = load_session().get(session_key)
+    start_index = 0
+    start_score = 0
+
+    # セッション復元は UI で確認するので、ここでは保存だけしておく
+    st.session_state.update({
+        "page": "quiz",
+        "quiz_questions": qs,
+        "quiz_index": start_index,
+        "quiz_score": start_score,
+        "quiz_subject": subject_id,
+        "quiz_mode": mode,
+        "quiz_session_key": session_key,
+        "quiz_saved_session": saved,
+        "answered": False,
+        "selected_option": None,
+    })
+
+
+# ════════════════════════════════════════════════════════
+#  ページ描画
+# ════════════════════════════════════════════════════════
+questions = load_questions()
+progress  = load_progress()
+
+render_sidebar(questions, progress)
+
+# ─── HOME ────────────────────────────────────────────
+if st.session_state.page == "home":
+    st.markdown("# 学習ダッシュボード")
+    st.caption("今日も合格に向けて一歩ずつ")
+    st.write("")
+
+    total_q     = len(questions)
+    total_ans   = sum(1 for q in questions if q["id"] in progress)
+    total_cor   = sum(1 for q in questions if progress.get(q["id"], {}).get("correct", False))
+    total_wrong = len(get_wrong_questions(questions, progress))
+    accuracy    = f"{round(total_cor/total_ans*100)}%" if total_ans > 0 else "—"
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("総問題数",  total_q)
+    c2.metric("解答済み",  total_ans)
+    c3.metric("正答率",    accuracy)
+    c4.metric("要復習",    total_wrong)
+
+    st.write("")
+    st.markdown("### 科目別進捗")
+
+    cols = st.columns(3)
+    for i, s in enumerate(SUBJECTS):
+        stats = get_subject_stats(s["id"], questions, progress)
+        pct = round(stats["answered"] / stats["total"] * 100) if stats["total"] > 0 else 0
+        bar_color = "progress-inner-green" if stats["rate"] >= 80 else ""
+
+        with cols[i % 3]:
+            wrong_badge = f'<span class="wrong-tag">要復習 {stats["wrong"]}</span>' if stats["wrong"] > 0 else ""
+            st.markdown(f"""
+            <div class="subject-card">
+                <div><span class="subject-tag">{s['short']}</span>{wrong_badge}</div>
+                <div style="font-size:15px;font-weight:500;color:#e0e0f0;margin:8px 0 12px;">{s['name']}</div>
+                <div class="progress-outer"><div class="progress-inner {bar_color}" style="width:{pct}%"></div></div>
+                <div style="display:flex;justify-content:space-between;font-size:12px;color:#7070a0;">
+                    <span>✓ 正解 {stats['correct']}</span>
+                    <span>✗ 要復習 {stats['wrong']}</span>
+                    <span style="color:#a594ff;font-family:'DM Mono',monospace;">{stats['rate']}%</span>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            if st.button(f"▶ {s['short']} を始める", key=f"start_{s['id']}", use_container_width=True):
+                start_quiz(s["id"], "all", questions, progress)
+                st.rerun()
+
+# ─── QUIZ ─────────────────────────────────────────────
+elif st.session_state.page == "quiz":
+    qs    = st.session_state.quiz_questions
+    idx   = st.session_state.quiz_index
+    total = len(qs)
+
+    # セッション復元の確認（一度だけ）
+    if st.session_state.get("quiz_saved_session") and not st.session_state.get("session_confirmed"):
+        saved = st.session_state.quiz_saved_session
+        subj = SUBJECT_MAP.get(st.session_state.quiz_subject, {})
+        st.info(f"前回の続きがあります（{saved['index']}/{saved['total']}問）。再開しますか？")
+        col_a, col_b = st.columns(2)
+        if col_a.button("▶ 続きから再開"):
+            st.session_state.quiz_index = saved["index"]
+            st.session_state.quiz_score = saved["score"]
+            st.session_state.session_confirmed = True
+            st.rerun()
+        if col_b.button("↺ 最初からやり直す"):
+            clear_session(st.session_state.quiz_session_key)
+            st.session_state.session_confirmed = True
+            st.rerun()
+        st.stop()
+
+    if not st.session_state.get("session_confirmed"):
+        st.session_state.session_confirmed = True
+
+    idx = st.session_state.quiz_index
+
+    # ヘッダー
+    subj_info = SUBJECT_MAP.get(st.session_state.quiz_subject, {"name": "全科目", "short": "—"})
+    col_back, col_meta = st.columns([1, 5])
+    if col_back.button("← 戻る"):
+        # セッション保存
+        sess = load_session()
+        sess[st.session_state.quiz_session_key] = {
+            "index": idx, "total": total, "score": st.session_state.quiz_score,
+            "saved_at": datetime.now().isoformat()
+        }
+        save_session(sess)
+        st.session_state.page = "home"
+        st.session_state.session_confirmed = False
+        st.rerun()
+
+    with col_meta:
+        st.markdown(f"**{subj_info['name']}**　`{idx+1} / {total} 問`")
+
+    # 進捗バー
+    pct = round((idx + 1) / total * 100)
+    st.markdown(f"""
+    <div class="progress-outer">
+        <div class="progress-inner" style="width:{pct}%"></div>
+    </div>
+    """, unsafe_allow_html=True)
+    st.write("")
+
+    q = qs[idx]
+    q_subj = SUBJECT_MAP.get(q["subject"], {"name": ""})
+    labels = ["Ａ", "Ｂ", "Ｃ", "Ｄ", "Ｅ"]
+
+    # 問題カード
+    st.markdown(f"""
+    <div class="question-card">
+        <div class="question-number">Q {str(idx+1).zfill(2)} ─ {q_subj['name']}</div>
+        <div class="question-text">{q['question']}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # 未解答時
+    if not st.session_state.answered:
+        choice = st.radio(
+            "選択してください",
+            options=list(range(len(q["options"]))),
+            format_func=lambda i: f"{labels[i]}　{q['options'][i]}",
+            key=f"radio_{idx}",
+            label_visibility="collapsed",
+        )
+        if st.button("解答する", key=f"answer_{idx}"):
+            is_correct = (choice == q["answer"])
+
+            # 進捗更新
+            prog = load_progress()
+            if q["id"] not in prog:
+                prog[q["id"]] = {"correct": False, "count": 0, "wrong_count": 0}
+            prog[q["id"]]["count"] += 1
+            if is_correct:
+                prog[q["id"]]["correct"] = True
+                st.session_state.quiz_score += 1
+            else:
+                prog[q["id"]]["wrong_count"] = prog[q["id"]].get("wrong_count", 0) + 1
+                prog[q["id"]]["correct"] = False
+            save_progress(prog)
+
+            # セッション保存
+            sess = load_session()
+            sess[st.session_state.quiz_session_key] = {
+                "index": idx, "total": total, "score": st.session_state.quiz_score,
+                "saved_at": datetime.now().isoformat()
+            }
+            save_session(sess)
+
+            st.session_state.selected_option = choice
+            st.session_state.answered = True
+            st.rerun()
+
+    # 解答後
+    else:
+        selected = st.session_state.selected_option
+        is_correct = (selected == q["answer"])
+
+        # 選択肢表示
+        for i, opt in enumerate(q["options"]):
+            if i == q["answer"]:
+                icon = "✅"
+            elif i == selected and not is_correct:
+                icon = "❌"
+            else:
+                icon = "　"
+            st.markdown(f"""
+            <div style="background:#1a1a2e;border:1px solid rgba(255,255,255,0.08);
+                border-radius:10px;padding:12px 18px;margin:6px 0;font-size:14px;color:#c0c0e0;">
+                {icon} {labels[i]}　{opt}
+            </div>
+            """, unsafe_allow_html=True)
+
+        # 結果
+        if is_correct:
+            st.markdown('<div class="correct-box">✓ 正解！</div>', unsafe_allow_html=True)
+        else:
+            correct_text = q["options"][q["answer"]]
+            st.markdown(f'<div class="wrong-box">✗ 不正解　正解：{labels[q["answer"]]}　{correct_text}</div>', unsafe_allow_html=True)
+
+        # 解説
+        st.markdown(f"""
+        <div class="explanation-box">
+            <div class="explanation-label">EXPLANATION</div>
+            {q['explanation']}
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.write("")
+        next_label = "次の問題 →" if idx + 1 < total else "結果を見る 🎯"
+        if st.button(next_label, key=f"next_{idx}"):
+            if idx + 1 >= total:
+                # セッションクリア
+                clear_session(st.session_state.quiz_session_key)
+                st.session_state.page = "result"
+            else:
+                st.session_state.quiz_index += 1
+                st.session_state.answered = False
+                st.session_state.selected_option = None
+            st.rerun()
+
+# ─── RESULT ──────────────────────────────────────────
+elif st.session_state.page == "result":
+    score = st.session_state.quiz_score
+    total = len(st.session_state.quiz_questions)
+    pct   = round(score / total * 100) if total > 0 else 0
+    icon  = "🎯" if pct >= 70 else "📚" if pct >= 50 else "💪"
+
+    st.write("")
+    st.markdown(f"<div style='text-align:center;font-size:56px;'>{icon}</div>", unsafe_allow_html=True)
+    st.markdown(f"<div style='text-align:center;font-size:56px;font-weight:700;color:#a594ff;font-family:DM Mono,monospace;'>{score} / {total}</div>", unsafe_allow_html=True)
+    st.markdown(f"<div style='text-align:center;font-size:16px;color:#7070a0;margin-top:8px;'>正答率　{pct}%</div>", unsafe_allow_html=True)
+    st.write("")
+
+    col1, col2, col3 = st.columns([1, 1, 1])
+    with col2:
+        if st.button("間違いを復習する", use_container_width=True):
+            start_quiz("all", "wrong", questions, progress)
+            st.rerun()
+    with col3:
+        if st.button("ホームに戻る", use_container_width=True):
+            st.session_state.page = "home"
+            st.rerun()
+
+# ─── WRONG REVIEW ─────────────────────────────────────
+elif st.session_state.page == "wrong":
+    wrong_qs = get_wrong_questions(questions, progress)
+    st.markdown("# ⚠️ 間違えた問題")
+    st.caption(f"要復習の問題が **{len(wrong_qs)}** 件あります")
+    st.write("")
+
+    if wrong_qs:
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            if st.button("📝 まとめて復習する", use_container_width=True):
+                start_quiz("all", "wrong", questions, progress)
+                st.rerun()
+        with col2:
+            if st.button("🗑️ 全てリセット", use_container_width=True):
+                prog = load_progress()
+                for k in prog:
+                    prog[k]["wrong_count"] = 0
+                    prog[k]["correct"] = False
+                save_progress(prog)
+                st.success("リセットしました")
+                st.rerun()
+
+        st.write("")
+        for q in wrong_qs:
+            s = SUBJECT_MAP.get(q["subject"], {"short": "—", "name": "—"})
+            p = progress.get(q["id"], {})
+            wc = p.get("wrong_count", 0)
+            col_q, col_btn = st.columns([5, 1])
+            with col_q:
+                st.markdown(f"""
+                <div style="background:#16162a;border:1px solid rgba(255,255,255,0.07);
+                    border-radius:10px;padding:14px 18px;margin:4px 0;display:flex;align-items:center;gap:14px;">
+                    <span style="background:rgba(231,76,60,0.1);color:#e74c3c;font-size:10px;
+                        font-family:'DM Mono',monospace;padding:3px 8px;border-radius:4px;white-space:nowrap;">
+                        {s['short']}
+                    </span>
+                    <span style="flex:1;font-size:13px;color:#a0a0c8;">{q['question'][:60]}…</span>
+                    <span style="font-size:11px;font-family:'DM Mono',monospace;color:#e74c3c;">×{wc}</span>
+                </div>
+                """, unsafe_allow_html=True)
+            with col_btn:
+                if st.button("解く", key=f"wrong_solve_{q['id']}"):
+                    st.session_state.update({
+                        "page": "quiz",
+                        "quiz_questions": [q],
+                        "quiz_index": 0,
+                        "quiz_score": 0,
+                        "quiz_subject": q["subject"],
+                        "quiz_mode": "single",
+                        "quiz_session_key": f"single_{q['id']}",
+                        "quiz_saved_session": None,
+                        "answered": False,
+                        "selected_option": None,
+                        "session_confirmed": True,
+                    })
+                    st.rerun()
+    else:
+        st.markdown("""
+        <div style="text-align:center;padding:60px;color:#5050a0;">
+            <div style="font-size:40px;margin-bottom:16px;">✨</div>
+            <div>間違えた問題はありません！</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+# ─── GENERATE ─────────────────────────────────────────
+elif st.session_state.page == "generate":
+    st.markdown("# ✨ 問題を生成・追加")
+    st.write("")
+
+    # API キー設定
+    with st.expander("🔑 Anthropic API キー設定", expanded=not bool(st.session_state.api_key)):
+        api_key = st.text_input(
+            "API キー",
+            value=st.session_state.api_key,
+            type="password",
+            placeholder="sk-ant-...",
+        )
+        if st.button("保存"):
+            st.session_state.api_key = api_key
+            st.success("保存しました！")
+
+    st.divider()
+
+    # AI 問題生成
+    st.markdown("### 🤖 AI で問題を自動生成")
+    st.caption("科目を選択して「生成開始」を押すと、各科目10問を自動生成して追加します。")
+
+    selected = st.multiselect(
+        "生成する科目を選択",
+        options=[s["id"] for s in SUBJECTS],
+        format_func=lambda x: f"{SUBJECT_MAP[x]['short']} - {SUBJECT_MAP[x]['name']}",
+        default=[],
+    )
+
+    if st.button("🚀 選択科目を生成開始", disabled=not (selected and st.session_state.api_key)):
+        if not st.session_state.api_key:
+            st.error("APIキーを入力してください。")
+        elif not selected:
+            st.warning("科目を選択してください。")
+        else:
+            import anthropic
+            log_area = st.empty()
+            logs = []
+
+            def log(msg, ok=True):
+                logs.append(("✓ " if ok else "✗ ") + msg)
+                log_area.markdown(
+                    '<div class="log-box">' +
+                    "<br>".join(logs[-20:]) +
+                    "</div>",
+                    unsafe_allow_html=True,
+                )
+
+            client = anthropic.Anthropic(api_key=st.session_state.api_key)
+            qs = load_questions()
+
+            for sid in selected:
+                subj = SUBJECT_MAP[sid]
+                log(f"{subj['name']} の問題を生成中…", ok=True)
+                existing = [q for q in qs if q["subject"] == sid]
+                start_idx = len(existing) + 1
+
+                prompt = (
+                    f"社会保険労務士試験の「{subj['name']}」に関する5択問題を10問作成してください。\n"
+                    f"以下のJSON配列のみ返してください（説明文・```は不要）:\n"
+                    f'[{{"id":"{sid}_{str(start_idx).zfill(3)}","subject":"{sid}",'
+                    f'"question":"問題文","options":["A","B","C","D","E"],"answer":0,"explanation":"解説"}}]\n'
+                    f"- answerは0始まりインデックス(0-4)\n"
+                    f"- 実際の法令に基づく正確な問題・本試験レベルの難易度\n"
+                    f"- IDは{sid}_{str(start_idx).zfill(3)}〜{sid}_{str(start_idx+9).zfill(3)}"
+                )
+
+                try:
+                    msg = client.messages.create(
+                        model="claude-sonnet-4-20250514",
+                        max_tokens=4000,
+                        messages=[{"role": "user", "content": prompt}],
+                    )
+                    text = msg.content[0].text.replace("```json", "").replace("```", "").strip()
+                    new_qs = json.loads(text)
+                    existing_ids = {q["id"] for q in qs}
+                    added = [q for q in new_qs if q["id"] not in existing_ids]
+                    qs.extend(added)
+                    save_questions(qs)
+                    log(f"{subj['name']}: {len(added)}問追加（合計 {len([q for q in qs if q['subject']==sid])}問）", ok=True)
+                except Exception as e:
+                    log(f"{subj['name']}: エラー - {str(e)[:60]}", ok=False)
+
+            log("完了！", ok=True)
+            questions = load_questions()
+            st.success("問題を生成しました！")
+
+    st.divider()
+
+    # JSON インポート
+    st.markdown("### 📋 JSON で問題を追加")
+    st.caption("以下の形式で問題をインポートできます。")
+
+    sample_json = json.dumps([{
+        "id": "roki_custom_001",
+        "subject": "roki",
+        "question": "問題文をここに入力",
+        "options": ["選択肢A", "選択肢B", "選択肢C", "選択肢D", "選択肢E"],
+        "answer": 0,
+        "explanation": "解説文をここに入力"
+    }], ensure_ascii=False, indent=2)
+
+    json_input = st.text_area("JSON を貼り付け", placeholder=sample_json, height=180)
+    if st.button("📥 インポート"):
+        try:
+            new_qs = json.loads(json_input)
+            qs = load_questions()
+            existing_ids = {q["id"] for q in qs}
+            added = [q for q in new_qs if q["id"] not in existing_ids]
+            qs.extend(added)
+            save_questions(qs)
+            st.success(f"{len(added)} 問を追加しました！")
+            st.rerun()
+        except Exception as e:
+            st.error(f"JSON の形式が正しくありません: {e}")
+
+    st.divider()
+
+    # 現在の問題数
+    st.markdown("### 📊 現在の問題数")
+    qs = load_questions()
+    cols = st.columns(3)
+    for i, s in enumerate(SUBJECTS):
+        count = len([q for q in qs if q["subject"] == s["id"]])
+        pct = min(count / 200 * 100, 100)
+        cols[i % 3].markdown(f"""
+        <div style="background:#16162a;border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:14px;margin:4px 0;">
+            <div style="font-size:11px;color:#6060a0;font-family:'DM Mono',monospace;">{s['short']}</div>
+            <div style="font-size:20px;font-weight:700;color:#a594ff;font-family:'DM Mono',monospace;">{count}<span style="font-size:12px;color:#5050a0;">/200</span></div>
+            <div class="progress-outer"><div class="progress-inner" style="width:{pct}%"></div></div>
+        </div>
+        """, unsafe_allow_html=True)
