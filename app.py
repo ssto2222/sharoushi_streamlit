@@ -738,9 +738,7 @@ elif st.session_state.page == "generate":
                     save_questions(qs)
                     log(f"{subj['name']}: {len(added)}問追加（合計 {len([q for q in qs if q['subject']==sid])}問）", ok=True)
                 except Exception as e:
-                    log(f"{subj['name']}: エラー - {str(e)[:60]}", ok=False)
-
-            log("完了！", ok=True)
+    log(f"{subj['name']}: エラー - {repr(e)}", ok=False)
             questions = load_questions()
             st.success("問題を生成しました！")
 
