@@ -424,7 +424,7 @@ for ad in ads:
 img_html = (
 f'<img src="{ad["image_url"]}" class="ad-card-img" onerror="this.style.display='none'">'
 if ad.get("image_url") else
-f’<div class="ad-card-img-placeholder">{ad.get("emoji", "📖")}</div>’
+f'<div class="ad-card-img-placeholder">{ad.get("emoji", "📖")}</div>'
 )
 st.markdown(f"""
 <a href="{ad.get('link_url','#')}" target="_blank" class="ad-card" rel="noopener noreferrer">
