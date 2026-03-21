@@ -900,20 +900,19 @@ elif st.session_state.page == "generate":
             st.error(f"JSON の形式が正しくありません: {e}")
 
     st.divider()
+    # ── 修正後 ──────────────────────────────────────────
     st.markdown("### 📊 現在の問題数")
     qs   = load_questions()
     cols = st.columns(3)
+
     for i, s in enumerate(SUBJECTS):
-        count  = len([q for q in qs if q["subject"] == s["id"]])
-        target = SUBJECT_QUOTA.get(s["id"], 100)
-        pct    = min(count / target * 100, 100)
+        count = len([q for q in qs if q["subject"] == s["id"]])
         cols[i % 3].markdown(f"""
         <div style="background:#16162a;border:1px solid rgba(255,255,255,0.07);
             border-radius:10px;padding:14px;margin:4px 0;">
             <div style="font-size:11px;color:#6060a0;font-family:'DM Mono',monospace;">{s['short']}</div>
             <div style="font-size:20px;font-weight:700;color:#a594ff;font-family:'DM Mono',monospace;">
-                {count}<span style="font-size:12px;color:#5050a0;">/{target}</span>
+                {count}<span style="font-size:12px;color:#5050a0;">問</span>
             </div>
-            <div class="progress-outer"><div class="progress-inner" style="width:{pct}%"></div></div>
         </div>
         """, unsafe_allow_html=True)
