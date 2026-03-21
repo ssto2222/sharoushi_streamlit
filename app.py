@@ -4,10 +4,10 @@ import random
 import time
 from datetime import datetime
 
-# ── ページ設定
+# ── ページ設定
 
 st.set_page_config(
-page_title="社労士 学習アプリ",
+page_title="社労士 学習アプリ",
 page_icon="📚",
 layout="wide",
 initial_sidebar_state="expanded",
@@ -51,7 +51,7 @@ p, li { color: #9090b8 !important; }
 hr { border-color: rgba(255,255,255,0.07) !important; }
 .log-box { background: #0e0e16; border: 1px solid rgba(255,255,255,0.07); border-radius: 8px; padding: 14px; font-family: 'DM Mono', monospace; font-size: 12px; color: #7070a0; max-height: 300px; overflow-y: auto; }
 
-/* ── 広告カード */
+/* ── 広告カード */
 .ad-section-label {
     font-size: 10px; color: #5050a0; font-family: 'DM Mono', monospace;
     letter-spacing: 2px; margin-bottom: 10px; text-align: right;
@@ -141,14 +141,14 @@ return get_supabase() is not None
 def do_login(email: str, password: str) -> tuple[bool, str]:
 sb = get_supabase()
 if not sb:
-return False, "Supabase が設定されていません"
+return False, "Supabase が設定されていません"
 try:
 res  = sb.auth.sign_in_with_password({"email": email, "password": password})
 user = res.user
 if not user:
-return False, "メールアドレスまたはパスワードが違います"
+return False, "メールアドレスまたはパスワードが違います"
 if user.user_metadata.get("role") != "admin":
-return False, "admin 権限がありません"
+return False, "admin 権限がありません"
 st.session_state["access_token"]  = res.session.access_token
 st.session_state["refresh_token"] = res.session.refresh_token
 st.session_state["login_at"]      = time.time()
@@ -156,7 +156,7 @@ st.session_state["auth_email"]    = email
 cache_invalidate()
 return True, ""
 except Exception as e:
-return False, f"ログイン失敗: {e}"
+return False, f"ログイン失敗: {e}"
 
 def is_logged_in() -> bool:
 login_at = st.session_state.get("login_at", 0)
@@ -191,11 +191,11 @@ st.session_state.pop(key, None)
 
 # キャッシュ管理
 
-# 読み取り : キャッシュ優先(DB アクセスなし)
+# 読み取り : キャッシュ優先（DB アクセスなし）
 
-# 書き込み : DB upsert + キャッシュ即時更新 or 破棄
+# 書き込み : DB upsert ＋ キャッシュ即時更新 or 破棄
 
-# 破棄タイミング : ログイン・ログアウト・問題追加・進捗リセット・広告変更
+# 破棄タイミング : ログイン・ログアウト・問題追加・進捗リセット・広告変更
 
 # ══════════════════════════════════════════════════════
 
@@ -204,7 +204,7 @@ st.session_state.pop(_CACHE_Q,  None)
 st.session_state.pop(_CACHE_P,  None)
 st.session_state.pop(_CACHE_AD, None)
 
-# ── 問題データ
+# ── 問題データ
 
 def load_questions():
 if _CACHE_Q in st.session_state:
@@ -228,7 +228,7 @@ else json.loads(r["options"]),
 st.session_state[_CACHE_Q] = result
 return result
 except Exception as e:
-st.error(f"問題データの読み込みエラー: {e}")
+st.error(f"問題データの読み込みエラー: {e}")
 return []
 
 def save_questions(qs):
@@ -247,9 +247,9 @@ rows = [{
 sb.table("questions").upsert(rows).execute()
 st.session_state.pop(_CACHE_Q, None)
 except Exception as e:
-st.error(f"問題データの保存エラー: {e}")
+st.error(f"問題データの保存エラー: {e}")
 
-# ── 進捗データ
+# ── 進捗データ
 
 def load_progress():
 if _CACHE_P in st.session_state:
@@ -269,7 +269,7 @@ prog[r["question_id"]] = {
 st.session_state[_CACHE_P] = prog
 return prog
 except Exception as e:
-st.error(f"進捗データの読み込みエラー: {e}")
+st.error(f"進捗データの読み込みエラー: {e}")
 return {}
 
 def save_progress_item(question_id, correct, count, wrong_count):
@@ -288,15 +288,15 @@ prog = st.session_state.get(_CACHE_P, {})
 prog[question_id] = {"correct": correct, "count": count, "wrong_count": wrong_count}
 st.session_state[_CACHE_P] = prog
 except Exception as e:
-st.error(f"進捗データの保存エラー: {e}")
+st.error(f"進捗データの保存エラー: {e}")
 
-# ── 広告データ
+# ── 広告データ
 
 def load_ads(active_only: bool = True):
 """
-active_only=True  → 有効な広告のみ(表示用)
-active_only=False → 全件(管理画面用)
-キャッシュは表示用(active_only)のみ利用。管理画面は常に DB から取得。
+active_only=True  → 有効な広告のみ（表示用）
+active_only=False → 全件（管理画面用）
+キャッシュは表示用（active_only）のみ利用。管理画面は常に DB から取得。
 """
 if active_only and _CACHE_AD in st.session_state:
 return st.session_state[_CACHE_AD]
@@ -313,7 +313,7 @@ if active_only:
 st.session_state[_CACHE_AD] = ads
 return ads
 except Exception as e:
-st.error(f"広告データの読み込みエラー: {e}")
+st.error(f"広告データの読み込みエラー: {e}")
 return []
 
 def save_ad(ad: dict):
@@ -342,7 +342,7 @@ except Exception as e:
 st.error(f"広告の削除エラー: {e}")
 return False
 
-# ── セッションデータ
+# ── セッションデータ
 
 def load_sessions():
 sb = get_supabase()
@@ -415,7 +415,7 @@ result.append(q)
 return result
 
 def render_ads():
-"""有効な広告をカード形式で表示(弱点復習ページ用)。"""
+"""有効な広告をカード形式で表示（弱点復習ページ用）。"""
 ads = load_ads(active_only=True)
 if not ads:
 return
@@ -467,7 +467,7 @@ init_state()
 
 # ══════════════════════════════════════════════════════
 
-# ログインページ
+# ログインページ
 
 # ══════════════════════════════════════════════════════
 
@@ -495,26 +495,26 @@ with col:
     </div>
     """, unsafe_allow_html=True)
 
-    email    = st.text_input("メールアドレス", placeholder="admin@example.com")
-    password = st.text_input("パスワード", type="password", placeholder="••••••••")
+    email    = st.text_input("メールアドレス", placeholder="admin@example.com")
+    password = st.text_input("パスワード", type="password", placeholder="••••••••")
 
-    if st.button("ログイン", use_container_width=True):
+    if st.button("ログイン", use_container_width=True):
         if not email or not password:
-            st.error("メールアドレスとパスワードを入力してください。")
+            st.error("メールアドレスとパスワードを入力してください。")
         else:
-            with st.spinner("認証中..."):
+            with st.spinner("認証中…"):
                 ok, msg = do_login(email, password)
             if ok:
-                st.success("ログインしました!")
+                st.success("ログインしました！")
                 st.rerun()
             else:
-                st.error(f"ログイン失敗: {msg}")
+                st.error(f"ログイン失敗: {msg}")
 
     if not supabase_ok():
-        st.warning("Supabase が未設定です。.streamlit/secrets.toml を確認してください。")
+        st.warning("Supabase が未設定です。.streamlit/secrets.toml を確認してください。")
 ```
 
-# ── クイズ開始
+# ── クイズ開始
 
 def start_quiz(subject_id, mode, questions, progress):
 if mode == "wrong":
@@ -526,7 +526,7 @@ qs = [q for q in questions if q["subject"] == subject_id]
 
 ```
 if not qs:
-    st.warning("この条件の問題がありません。")
+    st.warning("この条件の問題がありません。")
     return
 
 session_key = f"{subject_id}_{mode}"
@@ -547,7 +547,7 @@ st.session_state.update({
 })
 ```
 
-# ── サイドバー
+# ── サイドバー
 
 def render_sidebar(questions, progress):
 with st.sidebar:
@@ -565,18 +565,18 @@ st.divider()
     </div>
     """, unsafe_allow_html=True)
 
-    if st.button("🔓 ログアウト", use_container_width=True):
+    if st.button("🔓 ログアウト", use_container_width=True):
         do_logout()
         st.rerun()
 
     st.divider()
 
-    if st.button("🏠  ダッシュボード", use_container_width=True):
+    if st.button("🏠  ダッシュボード", use_container_width=True):
         st.session_state.page = "home"
         st.rerun()
 
     wrong_count = len(get_wrong_questions(questions, progress))
-    wrong_label = f"⚠️  間違えた問題 `{wrong_count}`" if wrong_count > 0 else "⚠️  間違えた問題"
+    wrong_label = f"⚠️  間違えた問題　`{wrong_count}`" if wrong_count > 0 else "⚠️  間違えた問題"
     if st.button(wrong_label, use_container_width=True):
         st.session_state.page = "wrong"
         st.rerun()
@@ -595,20 +595,20 @@ st.divider()
 
     for s in SUBJECTS:
         stats = get_subject_stats(s["id"], questions, progress)
-        label = f"**{s['short']}** {stats['answered']}/{stats['total']}"
+        label = f"**{s['short']}**　{stats['answered']}/{stats['total']}"
         if stats["wrong"] > 0:
-            label += f" 🔴{stats['wrong']}"
+            label += f"　🔴{stats['wrong']}"
         if st.button(label, key=f"nav_{s['id']}", use_container_width=True):
             start_quiz(s["id"], "all", questions, progress)
             st.rerun()
 
     st.divider()
-    st.caption("☁️ データはSupabaseに保存されます")
+    st.caption("☁️ データはSupabaseに保存されます")
 ```
 
 # ══════════════════════════════════════════════════════
 
-# 認証ガード
+# 認証ガード
 
 # ══════════════════════════════════════════════════════
 
@@ -618,7 +618,7 @@ st.stop()
 
 # ══════════════════════════════════════════════════════
 
-# ページ描画
+# ページ描画
 
 # ══════════════════════════════════════════════════════
 
@@ -629,8 +629,8 @@ render_sidebar(questions, progress)
 # ─── HOME ────────────────────────────────────────────
 
 if st.session_state.page == "home":
-st.markdown("# 学習ダッシュボード")
-st.caption("今日も合格に向けて一歩ずつ")
+st.markdown("# 学習ダッシュボード")
+st.caption("今日も合格に向けて一歩ずつ")
 st.write("")
 
 ```
@@ -682,7 +682,7 @@ total = len(qs)
 ```
 if st.session_state.get("quiz_saved_session") and not st.session_state.get("session_confirmed"):
     saved = st.session_state.quiz_saved_session
-    st.info(f"前回の続きがあります({saved['index']}/{saved['total']}問)。再開しますか?")
+    st.info(f"前回の続きがあります（{saved['index']}/{saved['total']}問）。再開しますか？")
     col_a, col_b = st.columns(2)
     if col_a.button("▶ 続きから再開"):
         st.session_state.quiz_index        = saved["index"]
@@ -709,7 +709,7 @@ if col_back.button("← 戻る"):
     st.rerun()
 
 with col_meta:
-    st.markdown(f"**{subj_info['name']}** `{idx + 1} / {total} 問`")
+    st.markdown(f"**{subj_info['name']}**　`{idx + 1} / {total} 問`")
 
 bar_pct = round((idx + 1) / total * 100)
 st.markdown(f'<div class="progress-outer"><div class="progress-inner" style="width:{bar_pct}%"></div></div>', unsafe_allow_html=True)
@@ -717,7 +717,7 @@ st.write("")
 
 q      = qs[idx]
 q_subj = SUBJECT_MAP.get(q["subject"], {"name": ""})
-labels = ["A", "B", "C", "D", "E"]
+labels = ["Ａ", "Ｂ", "Ｃ", "Ｄ", "Ｅ"]
 
 st.markdown(f"""
 <div class="question-card">
@@ -728,9 +728,9 @@ st.markdown(f"""
 
 if not st.session_state.answered:
     choice = st.radio(
-        "選択してください",
+        "選択してください",
         options=list(range(len(q["options"]))),
-        format_func=lambda i: f"{labels[i]} {q['options'][i]}",
+        format_func=lambda i: f"{labels[i]}　{q['options'][i]}",
         key=f"radio_{idx}",
         label_visibility="collapsed",
     )
@@ -762,19 +762,19 @@ else:
         elif i == selected and not is_correct:
             icon = "❌"
         else:
-            icon = " "
+            icon = "　"
         st.markdown(f"""
         <div style="background:#1a1a2e;border:1px solid rgba(255,255,255,0.08);
             border-radius:10px;padding:12px 18px;margin:6px 0;font-size:14px;color:#c0c0e0;">
-            {icon} {labels[i]} {opt}
+            {icon} {labels[i]}　{opt}
         </div>
         """, unsafe_allow_html=True)
 
     if is_correct:
-        st.markdown('<div class="correct-box">✓ 正解!</div>', unsafe_allow_html=True)
+        st.markdown('<div class="correct-box">✓ 正解！</div>', unsafe_allow_html=True)
     else:
         correct_text = q["options"][q["answer"]]
-        st.markdown(f'<div class="wrong-box">✗ 不正解 正解:{labels[q["answer"]]} {correct_text}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="wrong-box">✗ 不正解　正解：{labels[q["answer"]]}　{correct_text}</div>', unsafe_allow_html=True)
 
     st.markdown(f"""
     <div class="explanation-box">
@@ -808,7 +808,7 @@ icon  = "🎯" if pct >= 70 else "📚" if pct >= 50 else "💪"
 st.write("")
 st.markdown(f"<div style='text-align:center;font-size:56px;'>{icon}</div>", unsafe_allow_html=True)
 st.markdown(f"<div style='text-align:center;font-size:56px;font-weight:700;color:#a594ff;font-family:DM Mono,monospace;'>{score} / {total}</div>", unsafe_allow_html=True)
-st.markdown(f"<div style='text-align:center;font-size:16px;color:#7070a0;margin-top:8px;'>正答率 {pct}%</div>", unsafe_allow_html=True)
+st.markdown(f"<div style='text-align:center;font-size:16px;color:#7070a0;margin-top:8px;'>正答率　{pct}%</div>", unsafe_allow_html=True)
 st.write("")
 
 col1, col2, col3 = st.columns(3)
@@ -827,11 +827,11 @@ with col3:
 elif st.session_state.page == "wrong":
 wrong_qs = get_wrong_questions(questions, progress)
 st.markdown("# ⚠️ 間違えた問題")
-st.caption(f"要復習の問題が **{len(wrong_qs)}** 件あります")
+st.caption(f"要復習の問題が **{len(wrong_qs)}** 件あります")
 st.write("")
 
 ```
-# ── 広告スペース(弱点復習ページ上部)
+# ── 広告スペース（弱点復習ページ上部）
 render_ads()
 
 if wrong_qs:
@@ -864,7 +864,7 @@ if wrong_qs:
                     font-family:'DM Mono',monospace;padding:3px 8px;border-radius:4px;white-space:nowrap;">
                     {s['short']}
                 </span>
-                <span style="flex:1;font-size:13px;color:#a0a0c8;">{q['question'][:60]}...</span>
+                <span style="flex:1;font-size:13px;color:#a0a0c8;">{q['question'][:60]}…</span>
                 <span style="font-size:11px;font-family:'DM Mono',monospace;color:#e74c3c;">×{wc}</span>
             </div>
             """, unsafe_allow_html=True)
@@ -888,10 +888,11 @@ else:
     st.markdown("""
     <div style="text-align:center;padding:60px;color:#5050a0;">
         <div style="font-size:40px;margin-bottom:16px;">✨</div>
-        <div>間違えた問題はありません!</div>
+        <div>間違えた問題はありません！</div>
     </div>
     """, unsafe_allow_html=True)
 ```
+
 # ─── GENERATE ────────────────────────────────────────
 
 elif st.session_state.page == "generate":
@@ -903,11 +904,11 @@ with st.expander("🔑 Anthropic API キー設定", expanded=not bool(st.session
     api_key = st.text_input("API キー", value=st.session_state.api_key, type="password", placeholder="sk-ant-...")
     if st.button("保存"):
         st.session_state.api_key = api_key
-        st.success("保存しました!")
+        st.success("保存しました！")
 
 st.divider()
-st.markdown("### 🤖 AI で問題を自動生成")
-st.caption(f"科目を選択して「生成開始」を押すと、各科目10問を自動生成して追加します。(使用モデル: `{MODEL_NAME}`)")
+st.markdown("### 🤖 AI で問題を自動生成")
+st.caption(f"科目を選択して「生成開始」を押すと、各科目10問を自動生成して追加します。（使用モデル: `{MODEL_NAME}`）")
 
 selected = st.multiselect(
     "生成する科目を選択",
@@ -918,14 +919,14 @@ selected = st.multiselect(
 
 if st.button("🚀 選択科目を生成開始", disabled=not (selected and st.session_state.api_key)):
     if not st.session_state.api_key:
-        st.error("APIキーを入力してください。")
+        st.error("APIキーを入力してください。")
     elif not selected:
-        st.warning("科目を選択してください。")
+        st.warning("科目を選択してください。")
     else:
         try:
             import anthropic
         except ImportError:
-            st.error("anthropic パッケージがインストールされていません。")
+            st.error("anthropic パッケージがインストールされていません。")
             st.stop()
 
         log_area = st.empty()
@@ -948,21 +949,21 @@ if st.button("🚀 選択科目を生成開始", disabled=not (selected and st.s
             subj      = SUBJECT_MAP[sid]
             existing  = [q for q in qs if q["subject"] == sid]
             start_idx = len(existing) + 1
-            log(f"{subj['name']} の問題を生成中...")
+            log(f"{subj['name']} の問題を生成中…")
 
             prompt = (
-                f"社会保険労務士試験の「{subj['name']}」に関する5択問題を10問作成してください。\n"
-                f"必ずJSON配列のみ返してください(前後の説明文・```マークは絶対に不要)。\n"
+                f"社会保険労務士試験の「{subj['name']}」に関する5択問題を10問作成してください。\n"
+                f"必ずJSON配列のみ返してください（前後の説明文・```マークは絶対に不要）。\n"
                 f"フォーマット例:\n"
                 f'[{{"id":"{sid}_{str(start_idx).zfill(3)}","subject":"{sid}",'
                 f'"question":"問題文","options":["選択肢A","選択肢B","選択肢C","選択肢D","選択肢E"],'
                 f'"answer":0,"explanation":"解説文"}}]\n\n'
                 f"ルール:\n"
-                f"- answer は 0〜4 の整数(0始まりインデックス)\n"
-                f"- 実際の法令条文に基づく正確な内容\n"
-                f"- 本試験レベルの難易度\n"
+                f"- answer は 0〜4 の整数（0始まりインデックス）\n"
+                f"- 実際の法令条文に基づく正確な内容\n"
+                f"- 本試験レベルの難易度\n"
                 f"- IDは {sid}_{str(start_idx).zfill(3)} 〜 {sid}_{str(start_idx + 9).zfill(3)}\n"
-                f"- 10問ちょうど生成すること"
+                f"- 10問ちょうど生成すること"
             )
 
             try:
@@ -981,7 +982,7 @@ if st.button("🚀 選択科目を生成開始", disabled=not (selected and st.s
                 start_i = raw_text.find("[")
                 end_i   = raw_text.rfind("]")
                 if start_i == -1 or end_i == -1:
-                    raise ValueError(f"JSONの [ ] が見つかりません。応答: {raw_text[:200]}")
+                    raise ValueError(f"JSONの [ ] が見つかりません。応答: {raw_text[:200]}")
                 raw_text = raw_text[start_i:end_i + 1]
 
                 new_qs       = json.loads(raw_text)
@@ -992,13 +993,13 @@ if st.button("🚀 選択科目を生成開始", disabled=not (selected and st.s
                 for q in added:
                     required = {"id", "subject", "question", "options", "answer", "explanation"}
                     if not required.issubset(q.keys()):
-                        log(f"  → 問題 {q.get('id','?')} のフィールドが不足 (スキップ)", ok=False)
+                        log(f"  → 問題 {q.get('id','?')} のフィールドが不足 (スキップ)", ok=False)
                         continue
                     if not isinstance(q["options"], list) or len(q["options"]) != 5:
-                        log(f"  → 問題 {q.get('id','?')} の選択肢が5個でない (スキップ)", ok=False)
+                        log(f"  → 問題 {q.get('id','?')} の選択肢が5個でない (スキップ)", ok=False)
                         continue
                     if not isinstance(q["answer"], int) or not (0 <= q["answer"] <= 4):
-                        log(f"  → 問題 {q.get('id','?')} の answer が不正 (スキップ)", ok=False)
+                        log(f"  → 問題 {q.get('id','?')} の answer が不正 (スキップ)", ok=False)
                         continue
                     valid_added.append(q)
 
@@ -1006,19 +1007,19 @@ if st.button("🚀 選択科目を生成開始", disabled=not (selected and st.s
                     save_questions(valid_added)
                     qs.extend(valid_added)
                 total_now = len([q for q in qs if q["subject"] == sid])
-                log(f"{subj['name']}: {len(valid_added)}問追加(合計 {total_now}問)")
+                log(f"{subj['name']}: {len(valid_added)}問追加（合計 {total_now}問）")
 
             except json.JSONDecodeError as e:
-                log(f"{subj['name']}: JSONパースエラー - {repr(e)}", ok=False)
+                log(f"{subj['name']}: JSONパースエラー - {repr(e)}", ok=False)
             except Exception as e:
                 log(f"{subj['name']}: エラー - {repr(e)}", ok=False)
 
-        log("すべての生成が完了しました!")
-        st.success("問題の生成が完了しました!")
+        log("すべての生成が完了しました！")
+        st.success("問題の生成が完了しました！")
 
 st.divider()
-st.markdown("### 📋 JSON で問題を追加")
-st.caption("以下の形式で問題をインポートできます。")
+st.markdown("### 📋 JSON で問題を追加")
+st.caption("以下の形式で問題をインポートできます。")
 
 sample_json = json.dumps([{
     "id": "roki_custom_001", "subject": "roki",
@@ -1028,7 +1029,7 @@ sample_json = json.dumps([{
 }], ensure_ascii=False, indent=2)
 
 json_input = st.text_area("JSON を貼り付け", placeholder=sample_json, height=180)
-if st.button("📥 インポート"):
+if st.button("📥 インポート"):
     try:
         new_qs       = json.loads(json_input)
         qs           = load_questions()
@@ -1036,10 +1037,10 @@ if st.button("📥 インポート"):
         added        = [q for q in new_qs if q["id"] not in existing_ids]
         if added:
             save_questions(added)
-        st.success(f"{len(added)} 問を追加しました!")
+        st.success(f"{len(added)} 問を追加しました！")
         st.rerun()
     except Exception as e:
-        st.error(f"JSON の形式が正しくありません: {e}")
+        st.error(f"JSON の形式が正しくありません: {e}")
 
 st.divider()
 st.markdown("### 📊 現在の問題数")
@@ -1062,7 +1063,7 @@ for i, s in enumerate(SUBJECTS):
 
 elif st.session_state.page == "ads":
 st.markdown("# 📢 広告管理")
-st.caption("弱点復習ページに表示するおすすめ教材を管理します")
+st.caption("弱点復習ページに表示するおすすめ教材を管理します")
 st.write("")
 
 ```
@@ -1087,7 +1088,7 @@ if ads:
                     <div style="flex:1;">
                         <div style="font-size:13px;font-weight:600;color:#e0e0f0;">{ad.get('title','')}</div>
                         <div style="font-size:11px;color:#6060a0;margin-top:2px;">
-                            表示順: {ad.get('sort_order', 0)} | 
+                            表示順: {ad.get('sort_order', 0)}　|　
                             <span style="color:{status_color};">● {status_label}</span>
                         </div>
                     </div>
@@ -1106,7 +1107,7 @@ if ads:
                             st.rerun()
     st.divider()
 else:
-    st.info("広告はまだありません。下のフォームから追加してください。")
+    st.info("広告はまだありません。下のフォームから追加してください。")
     st.write("")
 
 # ── 追加 / 編集フォーム
@@ -1121,21 +1122,21 @@ with st.form("ad_form", clear_on_submit=True):
                     placeholder="例: ユーキャン 社労士 通信講座")
     description = st.text_area("説明文",
                     value=edit_ad.get("description", ""),
-                    placeholder="例: 合格率業界トップクラス。初学者でも安心のカリキュラム。",
+                    placeholder="例: 合格率業界トップクラス。初学者でも安心のカリキュラム。",
                     height=80)
     link_url    = st.text_input("リンクURL *",
                     value=edit_ad.get("link_url", ""),
                     placeholder="https://example.com/affiliate?id=xxx")
-    image_url   = st.text_input("画像URL(空欄の場合は絵文字表示)",
+    image_url   = st.text_input("画像URL（空欄の場合は絵文字表示）",
                     value=edit_ad.get("image_url", ""),
                     placeholder="https://example.com/image.jpg")
     col_emoji, col_order, col_active = st.columns([2, 2, 2])
     with col_emoji:
-        emoji = st.text_input("絵文字(画像なし時)",
+        emoji = st.text_input("絵文字（画像なし時）",
                     value=edit_ad.get("emoji", "📖"),
                     max_chars=2)
     with col_order:
-        sort_order = st.number_input("表示順(小さいほど上)",
+        sort_order = st.number_input("表示順（小さいほど上）",
                     value=int(edit_ad.get("sort_order", len(ads) + 1)),
                     min_value=1, max_value=999)
     with col_active:
@@ -1153,7 +1154,7 @@ with st.form("ad_form", clear_on_submit=True):
 
     if submitted:
         if not title or not link_url:
-            st.error("タイトルとリンクURLは必須です。")
+            st.error("タイトルとリンクURLは必須です。")
         else:
             ad_data = {
                 "title":       title,
@@ -1167,7 +1168,7 @@ with st.form("ad_form", clear_on_submit=True):
             if edit_id:
                 ad_data["id"] = edit_id
             if save_ad(ad_data):
-                st.success("保存しました!")
+                st.success("保存しました！")
                 st.session_state.ad_edit_id = None
                 st.rerun()
 
@@ -1175,10 +1176,10 @@ with st.form("ad_form", clear_on_submit=True):
         st.session_state.ad_edit_id = None
         st.rerun()
 
-# ── プレビュー
+# ── プレビュー
 if ads:
     st.divider()
-    st.markdown("### 👁️ 表示プレビュー")
-    st.caption("弱点復習ページでの見え方")
+    st.markdown("### 👁️ 表示プレビュー")
+    st.caption("弱点復習ページでの見え方")
     render_ads()
 ```
