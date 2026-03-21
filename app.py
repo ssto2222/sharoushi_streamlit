@@ -248,7 +248,7 @@ MODEL_NAME = "claude-haiku-4-5-20251001"
 
 @st.cache_resource
 def get_supabase():
-"""Supabaseクライアントを返す。secrets未設定時はNone。"""
+#Supabaseクライアントを返す。secrets未設定時はNone
 try:
 from supabase import create_client, Client
 url  = st.secrets["supabase"]["url"]
