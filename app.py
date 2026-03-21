@@ -111,22 +111,24 @@ import time
 # ── ログイン状態を1日保持 ──────────────────────────────
 SESSION_EXPIRE_SEC = 60 * 60 * 24  # 24時間
 
-def do_login(email: str, password: str) -> bool:
+def do_login(email: str, password: str) -> tuple[bool, str]:
     sb = get_supabase()
     if not sb:
-        return False
+        return False, "Supabase が設定されていません"
     try:
         res = sb.auth.sign_in_with_password({"email": email, "password": password})
         user = res.user
-        if not user or user.user_metadata.get("role") != "admin":
-            return False
+        if not user:
+            return False, "メールアドレスまたはパスワードが違います"
+        if user.user_metadata.get("role") != "admin":
+            return False, "admin 権限がありません"
         # トークンとログイン時刻を保存
         st.session_state["access_token"]  = res.session.access_token
         st.session_state["refresh_token"] = res.session.refresh_token
-        st.session_state["login_at"]      = time.time()  # ← 追加
-        return True
-    except Exception:
-        return False
+        st.session_state["login_at"]      = time.time()  # ← 24時間保持用
+        return True, ""
+    except Exception as e:
+        return False, f"ログイン失敗: {e}"
 
 
 def is_logged_in() -> bool:
