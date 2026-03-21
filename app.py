@@ -106,28 +106,47 @@ def supabase_ok():
 # ══════════════════════════════════════════════════════
 #  認証
 # ══════════════════════════════════════════════════════
+import time
 
-def do_login(email, password):
+# ── ログイン状態を1日保持 ──────────────────────────────
+SESSION_EXPIRE_SEC = 60 * 60 * 24  # 24時間
+
+def do_login(email: str, password: str) -> bool:
     sb = get_supabase()
-    if sb is None:
-        return False, "Supabase が設定されていません。"
+    if not sb:
+        return False
     try:
         res = sb.auth.sign_in_with_password({"email": email, "password": password})
         user = res.user
-        if user is None:
-            return False, "メールアドレスまたはパスワードが正しくありません。"
-        role = (user.user_metadata or {}).get("role", "")
-        if role != "admin":
-            sb.auth.sign_out()
-            return False, "admin 権限がありません。"
-        st.session_state["auth_user_id"]   = user.id
-        st.session_state["auth_email"]     = user.email
-        st.session_state["auth_logged_in"] = True
-        st.session_state["auth_token"]     = res.session.access_token
-        st.session_state["auth_refresh"]   = res.session.refresh_token
-        return True, ""
-    except Exception as e:
-        return False, str(e)
+        if not user or user.user_metadata.get("role") != "admin":
+            return False
+        # トークンとログイン時刻を保存
+        st.session_state["access_token"]  = res.session.access_token
+        st.session_state["refresh_token"] = res.session.refresh_token
+        st.session_state["login_at"]      = time.time()  # ← 追加
+        return True
+    except Exception:
+        return False
+
+
+def is_logged_in() -> bool:
+    # ログイン時刻チェック（24時間以内なら有効）
+    login_at = st.session_state.get("login_at", 0)
+    if time.time() - login_at > SESSION_EXPIRE_SEC:
+        return False
+
+    sb = get_supabase()
+    if not sb:
+        return False
+    token   = st.session_state.get("access_token")
+    refresh = st.session_state.get("refresh_token")
+    if not token or not refresh:
+        return False
+    try:
+        sb.auth.set_session(token, refresh)
+        return True
+    except Exception:
+        return False
 
 
 def do_logout():
@@ -140,27 +159,6 @@ def do_logout():
     for key in ["auth_user_id", "auth_email", "auth_logged_in", "auth_token", "auth_refresh"]:
         st.session_state.pop(key, None)
 
-
-def is_logged_in():
-    if not st.session_state.get("auth_logged_in"):
-        return False
-    sb = get_supabase()
-    if sb is None:
-        return False
-    try:
-        token   = st.session_state.get("auth_token", "")
-        refresh = st.session_state.get("auth_refresh", "")
-        if not token:
-            return False
-        session = sb.auth.set_session(token, refresh)
-        if session and session.user:
-            if session.session:
-                st.session_state["auth_token"]   = session.session.access_token
-                st.session_state["auth_refresh"] = session.session.refresh_token
-            return True
-        return False
-    except Exception:
-        return False
 
 
 # ══════════════════════════════════════════════════════
