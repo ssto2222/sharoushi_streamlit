@@ -403,7 +403,6 @@ def start_quiz(subject_id, mode, questions, progress):
         st.warning("この条件の問題がありません。")
         return
 
-    #random.shuffle(qs)
     session_key = f"{subject_id}_{mode}"
     saved       = load_sessions().get(session_key)
 
