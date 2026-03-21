@@ -298,7 +298,7 @@ def start_quiz(subject_id: str, mode: str, questions: list, progress: dict):
         st.warning("この条件の問題がありません。")
         return
 
-    random.shuffle(qs)
+    #random.shuffle(qs)
     session_key = f"{subject_id}_{mode}"
     saved       = load_session().get(session_key)
 
