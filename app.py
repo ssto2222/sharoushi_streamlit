@@ -422,7 +422,7 @@ return
 st.markdown('<div class="ad-section-label">PR・おすすめ教材</div>', unsafe_allow_html=True)
 for ad in ads:
 img_html = (
-f’<img src="{ad["image_url"]}" class="ad-card-img" onerror="this.style.display='none'">’
+f'<img src="{ad["image_url"]}" class="ad-card-img" onerror="this.style.display='none'">'
 if ad.get("image_url") else
 f’<div class="ad-card-img-placeholder">{ad.get("emoji", "📖")}</div>’
 )
