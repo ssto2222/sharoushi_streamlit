@@ -892,7 +892,6 @@ else:
     </div>
     """, unsafe_allow_html=True)
 ```
-
 # ─── GENERATE ────────────────────────────────────────
 
 elif st.session_state.page == "generate":
