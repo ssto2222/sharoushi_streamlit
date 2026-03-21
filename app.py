@@ -1,6 +1,7 @@
 import streamlit as st
 import json
 import random
+import time
 from datetime import datetime
 
 # ── ページ設定
@@ -51,37 +52,24 @@ hr { border-color: rgba(255,255,255,0.07) !important; }
 
 # ── 定数
 SUBJECTS = [
-    {"id": "roki",    "name": "労働基準法",           "short": "労基"},
-    {"id": "roan",    "name": "労働安全衛生法",         "short": "労安"},
-    {"id": "rosai",   "name": "労働者災害補償保険法",    "short": "労災"},
-    {"id": "koyo",    "name": "雇用保険法",             "short": "雇用"},
-    {"id": "choshu",  "name": "労働保険徴収法",         "short": "徴収"},
-    {"id": "kenpo",   "name": "健康保険法",             "short": "健保"},
-    {"id": "kokunen", "name": "国民年金法",             "short": "国年"},
-    {"id": "konen",   "name": "厚生年金保険法",         "short": "厚年"},
-    {"id": "shaichi", "name": "社会保険一般常識",        "short": "社一"},
+    {"id": "roki",    "name": "労働基準法",             "short": "労基"},
+    {"id": "roan",    "name": "労働安全衛生法",           "short": "労安"},
+    {"id": "rosai",   "name": "労働者災害補償保険法",      "short": "労災"},
+    {"id": "koyo",    "name": "雇用保険法",               "short": "雇用"},
+    {"id": "choshu",  "name": "労働保険徴収法",           "short": "徴収"},
+    {"id": "kenpo",   "name": "健康保険法",               "short": "健保"},
+    {"id": "kokunen", "name": "国民年金法",               "short": "国年"},
+    {"id": "konen",   "name": "厚生年金保険法",           "short": "厚年"},
+    {"id": "shaichi", "name": "社会保険一般常識",          "short": "社一"},
 ]
 SUBJECT_MAP = {s["id"]: s for s in SUBJECTS}
+MODEL_NAME  = "claude-haiku-4-5-20251001"
 
-# ── 過去問分析に基づく科目別目標問題数（合計1000問）
-# 設計根拠: 試験配点 × 頻出度 × 学習コスパ
-# 健保・国年・厚年: 択一10+選択5=15点 → 150問（最大コスパ）
-# 労基・労災・雇用: 択一7+選択5=12点  → 120問（法改正多め）
-# 社一:             択一5+選択5=10点  → 90問（広範囲をカバー）
-# 徴収:             択一6のみ=6点     → 60問（パターン固定）
-# 労安:             択一3のみ=3点     → 40問（暗記中心・深入り禁止）
-SUBJECT_QUOTA = {
-    "roki":    120,
-    "roan":     40,
-    "rosai":   120,
-    "koyo":    120,
-    "choshu":   60,
-    "kenpo":   150,
-    "kokunen": 150,
-    "konen":   150,
-    "shaichi":  90,
-}
-MODEL_NAME = "claude-haiku-4-5-20251001"
+SESSION_EXPIRE_SEC = 60 * 60 * 24  # 24時間
+
+# ── キャッシュキー
+_CACHE_Q = "_cache_questions"
+_CACHE_P = "_cache_progress"
 
 
 # ══════════════════════════════════════════════════════
@@ -98,7 +86,6 @@ def get_supabase():
     except Exception:
         return None
 
-
 def supabase_ok():
     return get_supabase() is not None
 
@@ -106,38 +93,34 @@ def supabase_ok():
 # ══════════════════════════════════════════════════════
 #  認証
 # ══════════════════════════════════════════════════════
-import time
-
-# ── ログイン状態を1日保持 ──────────────────────────────
-SESSION_EXPIRE_SEC = 60 * 60 * 24  # 24時間
 
 def do_login(email: str, password: str) -> tuple[bool, str]:
     sb = get_supabase()
     if not sb:
         return False, "Supabase が設定されていません"
     try:
-        res = sb.auth.sign_in_with_password({"email": email, "password": password})
+        res  = sb.auth.sign_in_with_password({"email": email, "password": password})
         user = res.user
         if not user:
             return False, "メールアドレスまたはパスワードが違います"
         if user.user_metadata.get("role") != "admin":
             return False, "admin 権限がありません"
-        # トークンとログイン時刻を保存
         st.session_state["access_token"]  = res.session.access_token
         st.session_state["refresh_token"] = res.session.refresh_token
-        st.session_state["login_at"]      = time.time()  # ← 24時間保持用
+        st.session_state["login_at"]      = time.time()
+        st.session_state["auth_email"]    = email
+        # ログイン時にキャッシュを破棄して最新データを取得させる
+        cache_invalidate()
         return True, ""
     except Exception as e:
         return False, f"ログイン失敗: {e}"
 
 
 def is_logged_in() -> bool:
-    # ログイン時刻チェック（24時間以内なら有効）
     login_at = st.session_state.get("login_at", 0)
     if time.time() - login_at > SESSION_EXPIRE_SEC:
         return False
-
-    sb = get_supabase()
+    sb      = get_supabase()
     if not sb:
         return False
     token   = st.session_state.get("access_token")
@@ -158,31 +141,50 @@ def do_logout():
             sb.auth.sign_out()
         except Exception:
             pass
-    for key in ["auth_user_id", "auth_email", "auth_logged_in", "auth_token", "auth_refresh"]:
+    # キャッシュ破棄 → 次回ログイン時に必ず再取得
+    cache_invalidate()
+    for key in ["access_token", "refresh_token", "login_at", "auth_email",
+                "auth_user_id", "auth_logged_in", "auth_token", "auth_refresh"]:
         st.session_state.pop(key, None)
 
 
+# ══════════════════════════════════════════════════════
+#  キャッシュ管理
+#  ・questions / progress は session_state にメモリキャッシュ
+#  ・読み取り : キャッシュがあれば DB アクセス不要
+#  ・書き込み : DB upsert ＋ キャッシュを即座に上書き
+#  ・破棄タイミング: ログイン・ログアウト・問題追加・進捗リセット
+# ══════════════════════════════════════════════════════
 
-# ══════════════════════════════════════════════════════
-#  データ I/O
-# ══════════════════════════════════════════════════════
+def cache_invalidate():
+    """questions / progress キャッシュを破棄。次回 load 時に DB 再取得。"""
+    st.session_state.pop(_CACHE_Q, None)
+    st.session_state.pop(_CACHE_P, None)
+
+
+# ── 問題データ
 
 def load_questions():
+    """キャッシュ優先。なければ DB 全件取得してキャッシュに保存。"""
+    if _CACHE_Q in st.session_state:
+        return st.session_state[_CACHE_Q]
     sb = get_supabase()
     if sb is None:
         return []
     try:
-        res = sb.table("questions").select("*").execute()
+        res    = sb.table("questions").select("*").execute()
         result = []
         for r in (res.data or []):
             result.append({
                 "id":          r["id"],
                 "subject":     r["subject"],
                 "question":    r["question"],
-                "options":     r["options"] if isinstance(r["options"], list) else json.loads(r["options"]),
+                "options":     r["options"] if isinstance(r["options"], list)
+                               else json.loads(r["options"]),
                 "answer":      r["answer"],
                 "explanation": r["explanation"],
             })
+        st.session_state[_CACHE_Q] = result
         return result
     except Exception as e:
         st.error(f"問題データの読み込みエラー: {e}")
@@ -190,32 +192,37 @@ def load_questions():
 
 
 def save_questions(qs):
+    """DB に upsert後、キャッシュを破棄（次回 load_questions で再取得）。"""
     sb = get_supabase()
     if sb is None:
         return
     try:
-        rows = [
-            {
-                "id":          q["id"],
-                "subject":     q["subject"],
-                "question":    q["question"],
-                "options":     q["options"],
-                "answer":      q["answer"],
-                "explanation": q["explanation"],
-            }
-            for q in qs
-        ]
+        rows = [{
+            "id":          q["id"],
+            "subject":     q["subject"],
+            "question":    q["question"],
+            "options":     q["options"],
+            "answer":      q["answer"],
+            "explanation": q["explanation"],
+        } for q in qs]
         sb.table("questions").upsert(rows).execute()
+        # 問題追加後はキャッシュを破棄して次回再取得
+        st.session_state.pop(_CACHE_Q, None)
     except Exception as e:
         st.error(f"問題データの保存エラー: {e}")
 
 
+# ── 進捗データ
+
 def load_progress():
+    """キャッシュ優先。なければ DB 全件取得してキャッシュに保存。"""
+    if _CACHE_P in st.session_state:
+        return st.session_state[_CACHE_P]
     sb = get_supabase()
     if sb is None:
         return {}
     try:
-        res = sb.table("progress").select("*").execute()
+        res  = sb.table("progress").select("*").execute()
         prog = {}
         for r in (res.data or []):
             prog[r["question_id"]] = {
@@ -223,6 +230,7 @@ def load_progress():
                 "count":       r["count"],
                 "wrong_count": r["wrong_count"],
             }
+        st.session_state[_CACHE_P] = prog
         return prog
     except Exception as e:
         st.error(f"進捗データの読み込みエラー: {e}")
@@ -230,6 +238,7 @@ def load_progress():
 
 
 def save_progress_item(question_id, correct, count, wrong_count):
+    """DB に upsert ＋ キャッシュの該当1件だけ上書き（フル再取得なし）。"""
     sb = get_supabase()
     if sb is None:
         return
@@ -241,16 +250,26 @@ def save_progress_item(question_id, correct, count, wrong_count):
             "wrong_count": wrong_count,
             "updated_at":  datetime.now().isoformat(),
         }).execute()
+        # キャッシュの該当エントリだけ上書き
+        prog = st.session_state.get(_CACHE_P, {})
+        prog[question_id] = {
+            "correct":     correct,
+            "count":       count,
+            "wrong_count": wrong_count,
+        }
+        st.session_state[_CACHE_P] = prog
     except Exception as e:
         st.error(f"進捗データの保存エラー: {e}")
 
+
+# ── セッションデータ（クイズ中断・再開）
 
 def load_sessions():
     sb = get_supabase()
     if sb is None:
         return {}
     try:
-        res = sb.table("quiz_sessions").select("*").execute()
+        res  = sb.table("quiz_sessions").select("*").execute()
         sess = {}
         for r in (res.data or []):
             sess[r["session_key"]] = {
@@ -290,7 +309,9 @@ def clear_session(key):
         pass
 
 
-# ── ユーティリティ
+# ══════════════════════════════════════════════════════
+#  ユーティリティ
+# ══════════════════════════════════════════════════════
 
 def get_subject_stats(subject_id, questions, progress):
     qs       = [q for q in questions if q["subject"] == subject_id]
@@ -485,6 +506,7 @@ if not is_logged_in():
 
 # ══════════════════════════════════════════════════════
 #  ページ描画
+#  questions / progress はキャッシュから取得（DB アクセスは初回のみ）
 # ══════════════════════════════════════════════════════
 
 questions = load_questions()
@@ -564,7 +586,7 @@ elif st.session_state.page == "quiz":
 
     idx = st.session_state.quiz_index
 
-    subj_info      = SUBJECT_MAP.get(st.session_state.quiz_subject, {"name": "全科目", "short": "--"})
+    subj_info          = SUBJECT_MAP.get(st.session_state.quiz_subject, {"name": "全科目", "short": "--"})
     col_back, col_meta = st.columns([1, 5])
     if col_back.button("← 戻る"):
         save_session_item(st.session_state.quiz_session_key, idx, total, st.session_state.quiz_score)
@@ -575,8 +597,8 @@ elif st.session_state.page == "quiz":
     with col_meta:
         st.markdown(f"**{subj_info['name']}**　`{idx + 1} / {total} 問`")
 
-    pct = round((idx + 1) / total * 100)
-    st.markdown(f'<div class="progress-outer"><div class="progress-inner" style="width:{pct}%"></div></div>', unsafe_allow_html=True)
+    bar_pct = round((idx + 1) / total * 100)
+    st.markdown(f'<div class="progress-outer"><div class="progress-inner" style="width:{bar_pct}%"></div></div>', unsafe_allow_html=True)
     st.write("")
 
     q      = qs[idx]
@@ -600,16 +622,18 @@ elif st.session_state.page == "quiz":
         )
         if st.button("解答する", key=f"answer_{idx}"):
             is_correct = (choice == q["answer"])
-            prog       = load_progress()
-            existing   = prog.get(q["id"], {"correct": False, "count": 0, "wrong_count": 0})
-            new_count  = existing["count"] + 1
-            new_wrong  = existing["wrong_count"]
+            # キャッシュから進捗を取得（DB アクセスなし）
+            prog      = load_progress()
+            existing  = prog.get(q["id"], {"correct": False, "count": 0, "wrong_count": 0})
+            new_count = existing["count"] + 1
+            new_wrong = existing["wrong_count"]
             if is_correct:
                 new_correct = True
                 st.session_state.quiz_score += 1
             else:
                 new_correct = False
                 new_wrong  += 1
+            # DB upsert ＋ キャッシュ1件上書き（フル再取得なし）
             save_progress_item(q["id"], new_correct, new_count, new_wrong)
             save_session_item(st.session_state.quiz_session_key, idx, total, st.session_state.quiz_score)
             st.session_state.selected_option = choice
@@ -654,9 +678,9 @@ elif st.session_state.page == "quiz":
                 clear_session(st.session_state.quiz_session_key)
                 st.session_state.page = "result"
             else:
-                st.session_state.quiz_index      += 1
-                st.session_state.answered         = False
-                st.session_state.selected_option  = None
+                st.session_state.quiz_index     += 1
+                st.session_state.answered        = False
+                st.session_state.selected_option = None
             st.rerun()
 
 
@@ -704,6 +728,8 @@ elif st.session_state.page == "wrong":
                 prog = load_progress()
                 for qid in prog:
                     save_progress_item(qid, False, 0, 0)
+                # リセット後はキャッシュ破棄して再取得
+                cache_invalidate()
                 st.success("リセットしました")
                 st.rerun()
 
@@ -836,11 +862,11 @@ elif st.session_state.page == "generate":
                                 raw_text = part
                                 break
 
-                    start = raw_text.find("[")
-                    end   = raw_text.rfind("]")
-                    if start == -1 or end == -1:
+                    start_i = raw_text.find("[")
+                    end_i   = raw_text.rfind("]")
+                    if start_i == -1 or end_i == -1:
                         raise ValueError(f"JSONの [ ] が見つかりません。応答: {raw_text[:200]}")
-                    raw_text = raw_text[start:end + 1]
+                    raw_text = raw_text[start_i:end_i + 1]
 
                     new_qs       = json.loads(raw_text)
                     existing_ids = {q["id"] for q in qs}
@@ -861,6 +887,7 @@ elif st.session_state.page == "generate":
                         valid_added.append(q)
 
                     if valid_added:
+                        # save_questions 内でキャッシュ破棄済み
                         save_questions(valid_added)
                         qs.extend(valid_added)
                     total_now = len([q for q in qs if q["subject"] == sid])
@@ -893,6 +920,7 @@ elif st.session_state.page == "generate":
             existing_ids = {q["id"] for q in qs}
             added        = [q for q in new_qs if q["id"] not in existing_ids]
             if added:
+                # save_questions 内でキャッシュ破棄済み
                 save_questions(added)
             st.success(f"{len(added)} 問を追加しました！")
             st.rerun()
@@ -900,11 +928,10 @@ elif st.session_state.page == "generate":
             st.error(f"JSON の形式が正しくありません: {e}")
 
     st.divider()
-    # ── 修正後 ──────────────────────────────────────────
     st.markdown("### 📊 現在の問題数")
+    # load_questions はキャッシュ破棄後なので最新データを取得
     qs   = load_questions()
     cols = st.columns(3)
-
     for i, s in enumerate(SUBJECTS):
         count = len([q for q in qs if q["subject"] == s["id"]])
         cols[i % 3].markdown(f"""
