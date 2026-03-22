@@ -98,12 +98,11 @@ def render():
                 sb = get_supabase()
                 if sb:
                     try:
-                        user_id = sb.auth.get_user().user.id
-                        # progressとsessionsを削除
-                        sb.table("progress").delete().eq("question_id", "dummy").execute()
-                        # Supabase管理者権限でユーザー削除（service_roleキーが必要）
-                        # 通常はサポートへの問い合わせを案内
-                        st.info("アカウント削除のリクエストを受け付けました。データの完全削除には数日かかる場合があります。")
+                        # progressとquiz_sessionsを削除（RLSで現在ユーザーのみ対象）
+                        sb.table("progress").delete().neq("question_id", "").execute()
+                        sb.table("quiz_sessions").delete().neq("session_key", "").execute()
+                        cache_invalidate()
+                        st.success("学習データを削除しました。ログアウトします。")
                         do_logout()
                         st.rerun()
                     except Exception as e:

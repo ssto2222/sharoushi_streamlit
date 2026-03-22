@@ -57,15 +57,14 @@ def render_ads():
 
 
 def render_footer():
-    st.markdown(f"""
-    <div class="footer">
-        <a href="#" onclick="window.parent.postMessage({{type:'streamlit:setComponentValue',value:'privacy'}}, '*')">
-            プライバシーポリシー
-        </a>
-        &nbsp;|&nbsp;
-        {COPYRIGHT}
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown('<div class="footer">', unsafe_allow_html=True)
+    col1, col2, col3 = st.columns([2, 1, 2])
+    with col2:
+        if st.button("プライバシーポリシー", key="footer_privacy_btn", use_container_width=True):
+            st.session_state["page"] = "privacy"
+            st.rerun()
+    st.markdown(f'<div style="text-align:center;padding:4px 0 16px;color:#3a3a5a;font-size:11px;">{COPYRIGHT}</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
 
 def init_state():
