@@ -70,10 +70,12 @@ def do_logout():
 
 
 def is_logged_in() -> bool:
+    # 24時間チェック
     login_at = st.session_state.get("login_at", 0)
     if time.time() - login_at > SESSION_EXPIRE_SEC:
         return False
-    sb      = get_supabase()
+
+    sb = get_supabase()
     if not sb:
         return False
     token   = st.session_state.get("access_token")
@@ -81,9 +83,23 @@ def is_logged_in() -> bool:
     if not token or not refresh:
         return False
     try:
-        sb.auth.set_session(token, refresh)
+        res = sb.auth.set_session(token, refresh)
+        # ── トークンが更新された場合は session_state を上書き ──
+        if res and res.session:
+            st.session_state["access_token"]  = res.session.access_token
+            st.session_state["refresh_token"] = res.session.refresh_token
         return True
     except Exception:
+        # set_session 失敗時はリフレッシュを試みる
+        try:
+            res = sb.auth.refresh_session(refresh)
+            if res and res.session:
+                st.session_state["access_token"]  = res.session.access_token
+                st.session_state["refresh_token"] = res.session.refresh_token
+                st.session_state["login_at"]      = time.time()
+                return True
+        except Exception:
+            pass
         return False
 
 
