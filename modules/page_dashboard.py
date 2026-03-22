@@ -2,7 +2,7 @@
 page_dashboard.py - ホーム（学習ダッシュボード）
 """
 import streamlit as st
-from .constants import SUBJECTS
+from .constants import SUBJECTS,SUBJECT_TOPICS
 from .utils import get_subject_stats, render_footer
 from .db import load_sessions
 
