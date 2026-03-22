@@ -61,11 +61,12 @@ def render(questions, progress):
     st.write("")
     st.markdown("### 科目別進捗")
     cols = st.columns(3)
-
     for i, s in enumerate(SUBJECTS):
         stats     = get_subject_stats(s["id"], questions, progress)
         pct       = round(stats["answered"] / stats["total"] * 100) if stats["total"] > 0 else 0
         bar_color = "progress-inner-green" if stats["rate"] >= 80 else ""
+        topics    = SUBJECT_TOPICS.get(s["id"], [])
+
         with cols[i % 3]:
             wrong_badge = f'<span class="wrong-tag">要復習 {stats["wrong"]}</span>' if stats["wrong"] > 0 else ""
             st.markdown(f"""
@@ -80,8 +81,28 @@ def render(questions, progress):
                 </div>
             </div>
             """, unsafe_allow_html=True)
+
+            # ── 出題範囲の内訳（expander でポップアップ風に表示）
+            if topics:
+                with st.expander(f"📋 出題範囲（{len(topics)}分野）を見る"):
+                    rows_html = ""
+                    for title, detail in topics:
+                        rows_html += f"""
+                        <div style="display:flex;gap:10px;padding:7px 0;
+                            border-bottom:1px solid rgba(255,255,255,0.05);align-items:flex-start;">
+                            <span style="min-width:8px;margin-top:6px;width:8px;height:8px;
+                                border-radius:50%;background:#7c6af5;flex-shrink:0;display:inline-block;"></span>
+                            <div>
+                                <div style="font-size:13px;color:#d0d0f0;font-weight:500;">{title}</div>
+                                <div style="font-size:11px;color:#6060a0;margin-top:2px;line-height:1.5;">{detail}</div>
+                            </div>
+                        </div>"""
+                    st.markdown(f'<div style="padding:4px 0;">{rows_html}</div>', unsafe_allow_html=True)
+
             if st.button(f"▶ {s['short']} を始める", key=f"start_{s['id']}", use_container_width=True):
                 start_quiz(s["id"], "all", questions, progress)
                 st.rerun()
+
+
 
     render_footer()
