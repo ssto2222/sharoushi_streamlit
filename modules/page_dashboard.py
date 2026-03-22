@@ -4,7 +4,6 @@ page_dashboard.py - ホーム（学習ダッシュボード）
 import streamlit as st
 from .constants import SUBJECTS, SUBJECT_TOPICS
 from .utils import get_subject_stats, render_footer
-from .db import load_sessions
 
 
 def start_quiz(subject_id, mode, questions, progress):
@@ -84,7 +83,7 @@ def render(questions, progress):
 
             # ── 出題範囲の内訳（expander でポップアップ風に表示）
             if topics:
-                with st.expander(f"📋 出題範囲（{len(topics)}分野）を見る"):
+                with st.expander(f"📋 出題範囲（{len(topics)}分野）を見る", key=f"topics_{s['id']}"):
                     rows_html = ""
                     for title, detail in topics:
                         rows_html += f"""
