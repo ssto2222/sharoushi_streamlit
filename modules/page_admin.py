@@ -134,17 +134,29 @@ def render_generate():
         "answer": 0, "explanation": "解説文",
     }], ensure_ascii=False, indent=2)
 
-    json_input = st.text_area("JSON を貼り付け", placeholder=sample_json, height=180)
-    if st.button("📥 インポート"):
+    def _import_questions(new_qs):
+        qs           = load_questions()
+        existing_ids = {q["id"] for q in qs}
+        added        = [q for q in new_qs if q["id"] not in existing_ids]
+        if added:
+            save_questions(added)
+        st.success(f"{len(added)} 問を追加しました！")
+        st.rerun()
+
+    uploaded_file = st.file_uploader("JSON ファイルをアップロード", type=["json"])
+    if uploaded_file is not None:
+        if st.button("📥 ファイルからインポート"):
+            try:
+                new_qs = json.loads(uploaded_file.read().decode("utf-8"))
+                _import_questions(new_qs)
+            except Exception as e:
+                st.error(f"JSON の形式が正しくありません: {e}")
+
+    json_input = st.text_area("または JSON を貼り付け", placeholder=sample_json, height=180)
+    if st.button("📥 テキストからインポート"):
         try:
-            new_qs       = json.loads(json_input)
-            qs           = load_questions()
-            existing_ids = {q["id"] for q in qs}
-            added        = [q for q in new_qs if q["id"] not in existing_ids]
-            if added:
-                save_questions(added)
-            st.success(f"{len(added)} 問を追加しました！")
-            st.rerun()
+            new_qs = json.loads(json_input)
+            _import_questions(new_qs)
         except Exception as e:
             st.error(f"JSON の形式が正しくありません: {e}")
 
