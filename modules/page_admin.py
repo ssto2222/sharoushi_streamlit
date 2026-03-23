@@ -8,6 +8,7 @@ import streamlit as st
 from .constants import SUBJECTS, SUBJECT_MAP, MODEL_NAME
 from .db import (
     load_questions, save_questions,
+    delete_questions_by_subject, delete_all_questions,
     load_ads, save_ad, delete_ad,
 )
 from .utils import render_ads, render_footer
@@ -140,22 +141,22 @@ def render_generate():
         st.caption("subject は次のいずれか: " + "、".join(f"`{s['id']}`" for s in SUBJECTS))
         st.caption("answer は 0〜4 の整数（0 = 選択肢A、4 = 選択肢E）")
 
-    def _validate_and_import_questions(new_qs):
+    overwrite_mode = st.checkbox("既存IDの問題を上書きする（同じIDがあれば置き換え）", value=False)
+
+    def _validate_and_import_questions(new_qs, overwrite=False):
         if not isinstance(new_qs, list):
             st.error("JSON はオブジェクトの配列（ `[{...}, ...]` ）である必要があります。")
             return
         qs           = load_questions()
         existing_ids = {q["id"] for q in qs}
-        valid_added  = []
+        valid_qs     = []
         errors       = []
         skipped_dup  = 0
+        overwritten  = 0
         valid_subject_ids = {s["id"] for s in SUBJECTS}
 
         for q in new_qs:
             qid = q.get("id", "?")
-            if qid in existing_ids:
-                skipped_dup += 1
-                continue
             required = {"id", "subject", "question", "options", "answer", "explanation"}
             if not required.issubset(q.keys()):
                 missing = required - q.keys()
@@ -170,18 +171,31 @@ def render_generate():
             if not isinstance(q["answer"], int) or not (0 <= q["answer"] <= 4):
                 errors.append(f"`{qid}`: answer は 0〜4 の整数である必要があります（現在: `{q['answer']}`）")
                 continue
-            valid_added.append(q)
+            if qid in existing_ids:
+                if overwrite:
+                    overwritten += 1
+                    valid_qs.append(q)
+                else:
+                    skipped_dup += 1
+            else:
+                valid_qs.append(q)
 
-        if valid_added:
-            save_questions(valid_added)
-            st.success(f"✅ {len(valid_added)} 問を追加しました！")
+        new_only = len(valid_qs) - overwritten
+        if valid_qs:
+            save_questions(valid_qs)
+            msg = []
+            if new_only:
+                msg.append(f"{new_only} 問を新規追加")
+            if overwritten:
+                msg.append(f"{overwritten} 問を上書き")
+            st.success(f"✅ {'、'.join(msg)}しました！")
         if skipped_dup:
-            st.info(f"⏭️ {skipped_dup} 問は既存のIDと重複しているためスキップしました。")
+            st.info(f"⏭️ {skipped_dup} 問は既存IDと重複しているためスキップしました。")
         if errors:
             with st.expander(f"⚠️ {len(errors)} 件のエラー（スキップ）", expanded=True):
                 for e in errors:
                     st.markdown(f"- {e}")
-        if valid_added:
+        if valid_qs:
             st.rerun()
 
     tab_file, tab_text = st.tabs(["📁 ファイルアップロード", "📝 テキスト貼り付け"])
@@ -194,7 +208,7 @@ def render_generate():
                 try:
                     raw = uploaded_file.read().decode("utf-8")
                     new_qs = json.loads(raw)
-                    _validate_and_import_questions(new_qs)
+                    _validate_and_import_questions(new_qs, overwrite=overwrite_mode)
                 except json.JSONDecodeError as e:
                     st.error(f"JSON のパースに失敗しました: {e}")
                 except Exception as e:
@@ -208,11 +222,68 @@ def render_generate():
             else:
                 try:
                     new_qs = json.loads(json_input)
-                    _validate_and_import_questions(new_qs)
+                    _validate_and_import_questions(new_qs, overwrite=overwrite_mode)
                 except json.JSONDecodeError as e:
                     st.error(f"JSON のパースに失敗しました: {e}")
                 except Exception as e:
                     st.error(f"エラーが発生しました: {e}")
+
+    st.divider()
+    st.markdown("### 問題を削除")
+    st.caption("削除した問題は元に戻せません。操作前にデータをエクスポートすることをお勧めします。")
+
+    del_tab_subj, del_tab_all = st.tabs(["📚 科目ごとに削除", "🗑️ 全問題を削除"])
+
+    with del_tab_subj:
+        del_subject = st.selectbox(
+            "削除する科目",
+            options=[s["id"] for s in SUBJECTS],
+            format_func=lambda x: f"{SUBJECT_MAP[x]['short']} - {SUBJECT_MAP[x]['name']}",
+            key="del_subject_select",
+        )
+        qs_preview = load_questions()
+        del_count = len([q for q in qs_preview if q["subject"] == del_subject])
+        st.caption(f"現在 {del_count} 問登録されています。")
+
+        if st.session_state.get("confirm_del_subj") == del_subject:
+            st.warning(f"⚠️ 本当に **{SUBJECT_MAP[del_subject]['name']}** の {del_count} 問を削除しますか？")
+            col_yes, col_no = st.columns(2)
+            with col_yes:
+                if st.button("はい、削除する", type="primary", use_container_width=True):
+                    n = delete_questions_by_subject(del_subject)
+                    st.session_state.pop("confirm_del_subj", None)
+                    st.success(f"🗑️ {SUBJECT_MAP[del_subject]['name']} の {n} 問を削除しました。")
+                    st.rerun()
+            with col_no:
+                if st.button("キャンセル", use_container_width=True):
+                    st.session_state.pop("confirm_del_subj", None)
+                    st.rerun()
+        else:
+            if st.button(f"🗑️ {SUBJECT_MAP[del_subject]['name']} の問題を削除", disabled=del_count == 0):
+                st.session_state["confirm_del_subj"] = del_subject
+                st.rerun()
+
+    with del_tab_all:
+        all_count = len(load_questions())
+        st.caption(f"現在 全科目合計 {all_count} 問登録されています。")
+
+        if st.session_state.get("confirm_del_all"):
+            st.warning(f"⚠️ 本当に **全 {all_count} 問**を削除しますか？この操作は取り消せません。")
+            col_yes, col_no = st.columns(2)
+            with col_yes:
+                if st.button("はい、全て削除する", type="primary", use_container_width=True, key="del_all_yes"):
+                    n = delete_all_questions()
+                    st.session_state.pop("confirm_del_all", None)
+                    st.success(f"🗑️ 全 {n} 問を削除しました。")
+                    st.rerun()
+            with col_no:
+                if st.button("キャンセル", use_container_width=True, key="del_all_no"):
+                    st.session_state.pop("confirm_del_all", None)
+                    st.rerun()
+        else:
+            if st.button("🗑️ 全問題を削除", disabled=all_count == 0):
+                st.session_state["confirm_del_all"] = True
+                st.rerun()
 
     st.divider()
     st.markdown("### 現在の問題数")

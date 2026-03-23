@@ -78,6 +78,39 @@ def save_questions(qs: list):
         st.error(f"問題データの保存エラー: {e}")
 
 
+def delete_questions_by_subject(subject_id: str) -> int:
+    """指定科目の問題を全削除。削除件数を返す。"""
+    sb = get_supabase()
+    if sb is None:
+        return 0
+    try:
+        qs = load_questions()
+        count = len([q for q in qs if q["subject"] == subject_id])
+        sb.table("questions").delete().eq("subject", subject_id).execute()
+        st.session_state.pop(CACHE_Q, None)
+        return count
+    except Exception as e:
+        st.error(f"問題削除エラー: {e}")
+        return 0
+
+
+def delete_all_questions() -> int:
+    """全問題を削除。削除件数を返す。"""
+    sb = get_supabase()
+    if sb is None:
+        return 0
+    try:
+        qs = load_questions()
+        count = len(qs)
+        # neq で全行削除（Supabase は条件なし delete を拒否するため）
+        sb.table("questions").delete().neq("id", "").execute()
+        st.session_state.pop(CACHE_Q, None)
+        return count
+    except Exception as e:
+        st.error(f"問題全削除エラー: {e}")
+        return 0
+
+
 # ── 進捗データ
 
 def load_progress() -> dict:
