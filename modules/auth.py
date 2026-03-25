@@ -5,8 +5,53 @@ role: "admin" -> 全機能
 """
 import time
 import streamlit as st
+from datetime import datetime, timedelta
 from .constants import SESSION_EXPIRE_SEC
 from .db import get_supabase, cache_invalidate
+
+_COOKIE_NAME    = "sharoushi_refresh"
+_COOKIE_EXPIRE_DAYS = 30
+
+
+def _cm():
+    """CookieManager を返す（同一キーで重複排除される）。"""
+    import extra_streamlit_components as stx
+    return stx.CookieManager(key="_sharoushi_cm")
+
+
+def _save_auth_cookie(refresh_token: str) -> None:
+    try:
+        expires = datetime.now() + timedelta(days=_COOKIE_EXPIRE_DAYS)
+        _cm().set(_COOKIE_NAME, refresh_token, expires_at=expires, key="_set_refresh")
+    except Exception:
+        pass
+
+
+def _delete_auth_cookie() -> None:
+    try:
+        _cm().delete(_COOKIE_NAME, key="_del_refresh")
+    except Exception:
+        pass
+
+
+def restore_from_cookie() -> bool:
+    """ページロード時に Cookie から Supabase セッションを復元する。"""
+    if st.session_state.get("access_token"):
+        return True
+    try:
+        refresh = _cm().get(_COOKIE_NAME)
+        if not refresh:
+            return False
+        sb = get_supabase()
+        if not sb:
+            return False
+        res = sb.auth.refresh_session(refresh)
+        if res and res.session:
+            _store_session(res)
+            return True
+    except Exception:
+        pass
+    return False
 
 
 def _store_session(res):
@@ -19,6 +64,7 @@ def _store_session(res):
     st.session_state["auth_email"]    = user.email
     st.session_state["auth_role"]     = role
     cache_invalidate()
+    _save_auth_cookie(res.session.refresh_token)
 
 
 def do_login(email: str, password: str) -> tuple[bool, str]:
@@ -64,6 +110,7 @@ def do_logout():
         except Exception:
             pass
     cache_invalidate()
+    _delete_auth_cookie()
     for key in ["access_token", "refresh_token", "login_at",
                 "auth_email", "auth_role", "auth_user_id"]:
         st.session_state.pop(key, None)

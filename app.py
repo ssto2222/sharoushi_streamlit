@@ -31,7 +31,7 @@ st.set_page_config(
 # ── モジュール読み込み
 from modules.styles       import inject
 from modules.utils        import init_state
-from modules.auth         import is_logged_in, is_admin
+from modules.auth         import is_logged_in, is_admin, restore_from_cookie
 from modules.db           import load_questions, load_progress
 from modules.sidebar      import render as render_sidebar
 from modules.page_auth    import render as render_auth
@@ -44,6 +44,7 @@ from modules.page_admin   import render_generate, render_ads_management
 # ── 初期化
 inject()
 init_state()
+restore_from_cookie()  # Cookie からセッションを復元（ページリロード対策）
 
 # ── プライバシーポリシーは認証不要
 if st.session_state.page == "privacy":
