@@ -129,11 +129,21 @@ def render_generate():
 
     st.divider()
     st.markdown("### JSON で問題を追加")
-    sample_json = json.dumps([{
-        "id": "roki_custom_001", "subject": "roki",
-        "question": "問題文", "options": ["A","B","C","D","E"],
-        "answer": 0, "explanation": "解説文",
-    }], ensure_ascii=False, indent=2)
+    st.caption("**穴埋め問題**は `question` フィールドに `___` を含めることで自動判定されます。")
+    sample_json = json.dumps([
+        {
+            "id": "roki_custom_001", "subject": "roki",
+            "question": "問題文（通常の選択問題）",
+            "options": ["選択肢A", "選択肢B", "選択肢C", "選択肢D", "選択肢E"],
+            "answer": 0, "explanation": "解説文",
+        },
+        {
+            "id": "roki_custom_002", "subject": "roki",
+            "question": "穴埋め問題の例：労働時間が___時間を超える場合は1時間以上の休憩が必要である。",
+            "options": ["8", "6", "10", "7", "9"],
+            "answer": 0, "explanation": "___に入る語句を選ぶ穴埋め形式です。",
+        },
+    ], ensure_ascii=False, indent=2)
 
     with st.expander("📋 JSON フォーマットを確認", expanded=False):
         st.markdown("以下のフォーマットに従って JSON を作成してください。")
