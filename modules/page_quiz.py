@@ -54,10 +54,26 @@ def render_quiz(questions, progress):
     q_subj = SUBJECT_MAP.get(q["subject"], {"name": ""})
     labels = ["A", "B", "C", "D", "E"]
 
+    is_fill_blank = "___" in q["question"]
+
+    _blank_html = (
+        '<span style="display:inline-block;min-width:80px;border-bottom:2px solid #a594ff;'
+        'color:#a594ff;font-weight:700;text-align:center;padding:0 6px;margin:0 2px;">'
+        '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>'
+    )
+    display_q = q["question"].replace("___", _blank_html) if is_fill_blank else q["question"]
+
+    q_type_label = "穴埋め" if is_fill_blank else "選択"
     st.markdown(f"""
     <div class="question-card">
-        <div class="question-number">Q {str(idx + 1).zfill(2)} -- {q_subj['name']}</div>
-        <div class="question-text">{q['question']}</div>
+        <div class="question-number">
+            Q {str(idx + 1).zfill(2)} -- {q_subj['name']}
+            <span style="font-size:10px;background:rgba(165,148,255,0.15);color:#a594ff;
+                border-radius:4px;padding:2px 7px;margin-left:8px;font-family:'DM Mono',monospace;">
+                {q_type_label}
+            </span>
+        </div>
+        <div class="question-text">{display_q}</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -91,6 +107,22 @@ def render_quiz(questions, progress):
     else:
         selected   = st.session_state.selected_option
         is_correct = (selected == q["answer"])
+
+        # 穴埋め問題は問題文に選んだ答えを埋めて再表示
+        if is_fill_blank:
+            fill_color = "#2ecc71" if is_correct else "#e74c3c"
+            filled_html = (
+                f'<span style="display:inline-block;min-width:80px;border-bottom:2px solid {fill_color};'
+                f'color:{fill_color};font-weight:700;text-align:center;padding:0 6px;margin:0 2px;">'
+                f'{q["options"][selected]}</span>'
+            )
+            answered_q = q["question"].replace("___", filled_html)
+            st.markdown(f"""
+            <div style="background:#1a1a2e;border:1px solid rgba(255,255,255,0.08);
+                border-radius:10px;padding:14px 18px;margin:8px 0;font-size:14px;color:#c0c0e0;line-height:1.8;">
+                {answered_q}
+            </div>
+            """, unsafe_allow_html=True)
 
         for i, opt in enumerate(q["options"]):
             if i == q["answer"]:
