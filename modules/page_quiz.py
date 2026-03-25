@@ -85,6 +85,7 @@ def render_quiz(questions, progress):
             save_session_item(st.session_state.quiz_session_key, idx, total, st.session_state.quiz_score)
             st.session_state.selected_option = choice
             st.session_state.answered        = True
+            st.session_state.just_answered   = True
             st.rerun()
 
     else:
@@ -119,8 +120,11 @@ def render_quiz(questions, progress):
         """, unsafe_allow_html=True)
 
         st.write("")
-        next_label = "次の問題 →" if idx + 1 < total else "結果を見る"
-        if st.button(next_label, key=f"next_{idx}"):
+        next_label    = "次の問題 →" if idx + 1 < total else "結果を見る"
+        just_answered = st.session_state.get("just_answered", False)
+        if just_answered:
+            st.session_state.just_answered = False
+        if st.button(next_label, key=f"next_{idx}", disabled=just_answered):
             if idx + 1 >= total:
                 clear_session(st.session_state.quiz_session_key)
                 st.session_state.page = "result"
