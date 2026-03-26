@@ -2,6 +2,7 @@
 page_quiz.py - 問題出題・解答・結果ページ
 """
 import streamlit as st
+import streamlit.components.v1 as components
 from .constants import SUBJECT_MAP
 from .db import (
     load_progress, save_progress_item,
@@ -11,6 +12,13 @@ from .utils import render_footer
 
 
 def render_quiz(questions, progress):
+    # 次の問題へ進んだ直後のみ先頭にスクロール
+    if st.session_state.pop("scroll_to_top", False):
+        components.html(
+            "<script>window.parent.document.querySelector('section.main').scrollTo(0,0);</script>",
+            height=0,
+        )
+
     qs    = st.session_state.quiz_questions
     total = len(qs)
 
@@ -164,6 +172,7 @@ def render_quiz(questions, progress):
                 st.session_state.quiz_index     += 1
                 st.session_state.answered        = False
                 st.session_state.selected_option = None
+                st.session_state.scroll_to_top   = True
             st.rerun()
 
 
