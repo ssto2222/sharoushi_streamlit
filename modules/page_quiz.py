@@ -17,11 +17,11 @@ def render_quiz(questions, progress):
         components.html(
             "<script>setTimeout(function(){"
             "try{"
-            "var el=window.parent.document.getElementById('question-anchor');"
+            "var el=window.parent.document.getElementById('question-number-anchor');"
             "if(el){"
             "var rect=el.getBoundingClientRect();"
             "var scrollTop=window.parent.pageYOffset||window.parent.document.documentElement.scrollTop;"
-            "window.parent.scrollTo({top:scrollTop+rect.top-40,behavior:'smooth'});"
+            "window.parent.scrollTo({top:scrollTop+rect.top-10,behavior:'smooth'});"
             "}"
             "}catch(e){}"
             "},200);</script>",
@@ -83,7 +83,7 @@ def render_quiz(questions, progress):
     q_type_label = "穴埋め" if is_fill_blank else "選択"
     st.markdown(f"""
     <div id="question-anchor" class="question-card">
-        <div class="question-number">
+        <div id="question-number-anchor" class="question-number">
             Q {str(idx + 1).zfill(2)} -- {q_subj['name']}
             <span style="font-size:10px;background:rgba(165,148,255,0.15);color:#a594ff;
                 border-radius:4px;padding:2px 7px;margin-left:8px;font-family:'DM Mono',monospace;">
