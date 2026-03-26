@@ -8,6 +8,7 @@ import streamlit as st
 from .constants import SUBJECTS, SUBJECT_MAP, MODEL_NAME
 from .db import (
     load_questions, save_questions,
+    delete_questions_by_subject, delete_all_questions,
     load_ads, save_ad, delete_ad,
 )
 from .utils import render_ads, render_footer
@@ -128,47 +129,161 @@ def render_generate():
 
     st.divider()
     st.markdown("### JSON で問題を追加")
-    st.caption("**穴埋め問題**は `question` フィールドに `___` を含めることで自動判定されます。")
-    sample_json = json.dumps([
-        {
-            "id": "roki_custom_001", "subject": "roki",
-            "question": "問題文（通常の選択問題）",
-            "options": ["選択肢A", "選択肢B", "選択肢C", "選択肢D", "選択肢E"],
-            "answer": 0, "explanation": "解説文",
-        },
-        {
-            "id": "roki_custom_002", "subject": "roki",
-            "question": "穴埋め問題の例：労働時間が___時間を超える場合は1時間以上の休憩が必要である。",
-            "options": ["8", "6", "10", "7", "9"],
-            "answer": 0, "explanation": "___に入る語句を選ぶ穴埋め形式です。",
-        },
-    ], ensure_ascii=False, indent=2)
+    sample_json = json.dumps([{
+        "id": "roki_custom_001", "subject": "roki",
+        "question": "問題文", "options": ["A","B","C","D","E"],
+        "answer": 0, "explanation": "解説文",
+    }], ensure_ascii=False, indent=2)
 
-    def _import_questions(new_qs):
+    with st.expander("📋 JSON フォーマットを確認", expanded=False):
+        st.markdown("以下のフォーマットに従って JSON を作成してください。")
+        st.code(sample_json, language="json")
+        st.caption("subject は次のいずれか: " + "、".join(f"`{s['id']}`" for s in SUBJECTS))
+        st.caption("answer は 0〜4 の整数（0 = 選択肢A、4 = 選択肢E）")
+
+    overwrite_mode = st.checkbox("既存IDの問題を上書きする（同じIDがあれば置き換え）", value=False)
+
+    def _validate_and_import_questions(new_qs, overwrite=False):
+        if not isinstance(new_qs, list):
+            st.error("JSON はオブジェクトの配列（ `[{...}, ...]` ）である必要があります。")
+            return
         qs           = load_questions()
         existing_ids = {q["id"] for q in qs}
-        added        = [q for q in new_qs if q["id"] not in existing_ids]
-        if added:
-            save_questions(added)
-        st.success(f"{len(added)} 問を追加しました！")
-        st.rerun()
+        valid_qs     = []
+        errors       = []
+        skipped_dup  = 0
+        overwritten  = 0
+        valid_subject_ids = {s["id"] for s in SUBJECTS}
 
-    uploaded_file = st.file_uploader("JSON ファイルをアップロード", type=["json"])
-    if uploaded_file is not None:
-        if st.button("📥 ファイルからインポート"):
-            try:
-                new_qs = json.loads(uploaded_file.read().decode("utf-8"))
-                _import_questions(new_qs)
-            except Exception as e:
-                st.error(f"JSON の形式が正しくありません: {e}")
+        for q in new_qs:
+            qid = q.get("id", "?")
+            required = {"id", "subject", "question", "options", "answer", "explanation"}
+            if not required.issubset(q.keys()):
+                missing = required - q.keys()
+                errors.append(f"`{qid}`: 必須フィールド不足 — {', '.join(missing)}")
+                continue
+            if q["subject"] not in valid_subject_ids:
+                errors.append(f"`{qid}`: 無効な subject `{q['subject']}`")
+                continue
+            if not isinstance(q["options"], list) or len(q["options"]) != 5:
+                errors.append(f"`{qid}`: options は5個のリストである必要があります")
+                continue
+            if not isinstance(q["answer"], int) or not (0 <= q["answer"] <= 4):
+                errors.append(f"`{qid}`: answer は 0〜4 の整数である必要があります（現在: `{q['answer']}`）")
+                continue
+            if qid in existing_ids:
+                if overwrite:
+                    overwritten += 1
+                    valid_qs.append(q)
+                else:
+                    skipped_dup += 1
+            else:
+                valid_qs.append(q)
 
-    json_input = st.text_area("または JSON を貼り付け", placeholder=sample_json, height=180)
-    if st.button("📥 テキストからインポート"):
-        try:
-            new_qs = json.loads(json_input)
-            _import_questions(new_qs)
-        except Exception as e:
-            st.error(f"JSON の形式が正しくありません: {e}")
+        new_only = len(valid_qs) - overwritten
+        if valid_qs:
+            save_questions(valid_qs)
+            msg = []
+            if new_only:
+                msg.append(f"{new_only} 問を新規追加")
+            if overwritten:
+                msg.append(f"{overwritten} 問を上書き")
+            st.success(f"✅ {'、'.join(msg)}しました！")
+        if skipped_dup:
+            st.info(f"⏭️ {skipped_dup} 問は既存IDと重複しているためスキップしました。")
+        if errors:
+            with st.expander(f"⚠️ {len(errors)} 件のエラー（スキップ）", expanded=True):
+                for e in errors:
+                    st.markdown(f"- {e}")
+        if valid_qs:
+            st.rerun()
+
+    tab_file, tab_text = st.tabs(["📁 ファイルアップロード", "📝 テキスト貼り付け"])
+
+    with tab_file:
+        uploaded_file = st.file_uploader("JSON ファイルをアップロード", type=["json"], label_visibility="collapsed")
+        if uploaded_file is not None:
+            st.caption(f"ファイル名: `{uploaded_file.name}`　サイズ: {uploaded_file.size:,} bytes")
+            if st.button("📥 ファイルからインポート", use_container_width=True):
+                try:
+                    raw = uploaded_file.read().decode("utf-8")
+                    new_qs = json.loads(raw)
+                    _validate_and_import_questions(new_qs, overwrite=overwrite_mode)
+                except json.JSONDecodeError as e:
+                    st.error(f"JSON のパースに失敗しました: {e}")
+                except Exception as e:
+                    st.error(f"エラーが発生しました: {e}")
+
+    with tab_text:
+        json_input = st.text_area("JSON を貼り付け", placeholder=sample_json, height=200, label_visibility="collapsed")
+        if st.button("📥 テキストからインポート", use_container_width=True):
+            if not json_input.strip():
+                st.warning("JSON を入力してください。")
+            else:
+                try:
+                    new_qs = json.loads(json_input)
+                    _validate_and_import_questions(new_qs, overwrite=overwrite_mode)
+                except json.JSONDecodeError as e:
+                    st.error(f"JSON のパースに失敗しました: {e}")
+                except Exception as e:
+                    st.error(f"エラーが発生しました: {e}")
+
+    st.divider()
+    st.markdown("### 問題を削除")
+    st.caption("削除した問題は元に戻せません。操作前にデータをエクスポートすることをお勧めします。")
+
+    del_tab_subj, del_tab_all = st.tabs(["📚 科目ごとに削除", "🗑️ 全問題を削除"])
+
+    with del_tab_subj:
+        del_subject = st.selectbox(
+            "削除する科目",
+            options=[s["id"] for s in SUBJECTS],
+            format_func=lambda x: f"{SUBJECT_MAP[x]['short']} - {SUBJECT_MAP[x]['name']}",
+            key="del_subject_select",
+        )
+        qs_preview = load_questions()
+        del_count = len([q for q in qs_preview if q["subject"] == del_subject])
+        st.caption(f"現在 {del_count} 問登録されています。")
+
+        if st.session_state.get("confirm_del_subj") == del_subject:
+            st.warning(f"⚠️ 本当に **{SUBJECT_MAP[del_subject]['name']}** の {del_count} 問を削除しますか？")
+            col_yes, col_no = st.columns(2)
+            with col_yes:
+                if st.button("はい、削除する", type="primary", use_container_width=True):
+                    n = delete_questions_by_subject(del_subject)
+                    st.session_state.pop("confirm_del_subj", None)
+                    st.success(f"🗑️ {SUBJECT_MAP[del_subject]['name']} の {n} 問を削除しました。")
+                    st.rerun()
+            with col_no:
+                if st.button("キャンセル", use_container_width=True):
+                    st.session_state.pop("confirm_del_subj", None)
+                    st.rerun()
+        else:
+            if st.button(f"🗑️ {SUBJECT_MAP[del_subject]['name']} の問題を削除", disabled=del_count == 0):
+                st.session_state["confirm_del_subj"] = del_subject
+                st.rerun()
+
+    with del_tab_all:
+        all_count = len(load_questions())
+        st.caption(f"現在 全科目合計 {all_count} 問登録されています。")
+
+        if st.session_state.get("confirm_del_all"):
+            st.warning(f"⚠️ 本当に **全 {all_count} 問**を削除しますか？この操作は取り消せません。")
+            col_yes, col_no = st.columns(2)
+            with col_yes:
+                if st.button("はい、全て削除する", type="primary", use_container_width=True, key="del_all_yes"):
+                    n = delete_all_questions()
+                    st.session_state.pop("confirm_del_all", None)
+                    st.success(f"🗑️ 全 {n} 問を削除しました。")
+                    st.rerun()
+            with col_no:
+                if st.button("キャンセル", use_container_width=True, key="del_all_no"):
+                    st.session_state.pop("confirm_del_all", None)
+                    st.rerun()
+        else:
+            if st.button("🗑️ 全問題を削除", disabled=all_count == 0):
+                st.session_state["confirm_del_all"] = True
+                st.rerun()
 
     st.divider()
     st.markdown("### 現在の問題数")
