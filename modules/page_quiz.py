@@ -21,7 +21,7 @@ def render_quiz(questions, progress):
             "if(el){"
             "var rect=el.getBoundingClientRect();"
             "var scrollTop=window.parent.pageYOffset||window.parent.document.documentElement.scrollTop;"
-            "window.parent.scrollTo({top:scrollTop+rect.top-40,behavior:'smooth'});"
+            "window.parent.scrollTo({top:scrollTop+rect.top-10,behavior:'smooth'});"
             "}"
             "}catch(e){}"
             "},200);</script>",
