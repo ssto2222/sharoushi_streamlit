@@ -117,23 +117,7 @@ def render_quiz(questions, progress):
     else:
         selected      = st.session_state.selected_option
         is_correct    = (selected == q["answer"])
-        just_answered = st.session_state.pop("just_answered", False)  # ここで読み出し＆クリア
-
-        # 穴埋め問題は問題文に選んだ答えを埋めて再表示
-        if is_fill_blank:
-            fill_color = "#2ecc71" if is_correct else "#e74c3c"
-            filled_html = (
-                f'<span style="display:inline-block;min-width:80px;border-bottom:2px solid {fill_color};'
-                f'color:{fill_color};font-weight:700;text-align:center;padding:0 6px;margin:0 2px;">'
-                f'{q["options"][selected]}</span>'
-            )
-            answered_q = q["question"].replace("___", filled_html)
-            st.markdown(f"""
-            <div style="background:#1a1a2e;border:1px solid rgba(255,255,255,0.08);
-                border-radius:10px;padding:14px 18px;margin:8px 0;font-size:14px;color:#c0c0e0;line-height:1.8;">
-                {answered_q}
-            </div>
-            """, unsafe_allow_html=True)
+        just_answered = st.session_state.pop("just_answered", False)
 
         # 穴埋め問題は問題文に選んだ答えを埋めて再表示
         if is_fill_blank:
@@ -188,7 +172,7 @@ def render_quiz(questions, progress):
 
         st.write("")
         next_label = "次の問題 →" if idx + 1 < total else "結果を見る"
-        if st.button(next_label, key=f"next_{idx}", disabled=just_answered):
+        if st.button(next_label, key=f"next_{idx}"):
             if idx + 1 >= total:
                 clear_session(st.session_state.quiz_session_key)
                 st.session_state.page = "result"
