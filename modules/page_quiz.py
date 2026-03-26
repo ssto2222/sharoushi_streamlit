@@ -147,10 +147,10 @@ def render_quiz(questions, progress):
             """, unsafe_allow_html=True)
 
         if is_correct:
-            st.markdown('<div class="correct-box">正解！</div>', unsafe_allow_html=True)
+            st.markdown('<div id="explanation-anchor" class="correct-box">正解！</div>', unsafe_allow_html=True)
         else:
             correct_text = q["options"][q["answer"]]
-            st.markdown(f'<div class="wrong-box">不正解  正解：{labels[q["answer"]]}  {correct_text}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div id="explanation-anchor" class="wrong-box">不正解  正解：{labels[q["answer"]]}  {correct_text}</div>', unsafe_allow_html=True)
 
         st.markdown(f"""
         <div class="explanation-box">
@@ -158,6 +158,15 @@ def render_quiz(questions, progress):
             {q['explanation']}
         </div>
         """, unsafe_allow_html=True)
+
+        if just_answered:
+            components.html(
+                "<script>"
+                "var el=window.parent.document.getElementById('explanation-anchor');"
+                "if(el)el.scrollIntoView({behavior:'smooth',block:'start'});"
+                "</script>",
+                height=0,
+            )
 
         st.write("")
         next_label    = "次の問題 →" if idx + 1 < total else "結果を見る"
