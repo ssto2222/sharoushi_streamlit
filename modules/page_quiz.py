@@ -117,7 +117,7 @@ def render_quiz(questions, progress):
     else:
         selected      = st.session_state.selected_option
         is_correct    = (selected == q["answer"])
-        just_answered = st.session_state.pop("just_answered", False)  # ここで読み出し＆クリア
+        just_answered = st.session_state.pop("just_answered", False)
 
         # 穴埋め問題は問題文に選んだ答えを埋めて再表示
         if is_fill_blank:
@@ -172,7 +172,7 @@ def render_quiz(questions, progress):
 
         st.write("")
         next_label = "次の問題 →" if idx + 1 < total else "結果を見る"
-        if st.button(next_label, key=f"next_{idx}", disabled=just_answered):
+        if st.button(next_label, key=f"next_{idx}"):
             if idx + 1 >= total:
                 clear_session(st.session_state.quiz_session_key)
                 st.session_state.page = "result"
