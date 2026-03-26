@@ -54,5 +54,26 @@ hr { border-color: rgba(255,255,255,0.07) !important; }
 </style>
 """
 
+# メインページコンテキストでpostMessageを受け取りスクロールするリスナー
+# img onerror を使ってインラインスクリプトをメインページで実行する
+_SCROLL_LISTENER = (
+    '<img src="x" style="display:none" onerror="'
+    "if(!window.__sl){"
+    "window.__sl=true;"
+    "window.addEventListener('message',function(e){"
+    "if(!e.data||e.data.t!=='sc')return;"
+    "if(e.data.v==='top'){"
+    "document.documentElement.scrollTop=0;"
+    "document.body.scrollTop=0;"
+    "}else{"
+    "var el=document.getElementById(e.data.v);"
+    "if(el)el.scrollIntoView({behavior:'smooth',block:'start'});"
+    "}"
+    "});"
+    '}">'
+)
+
+
 def inject():
     st.markdown(CSS, unsafe_allow_html=True)
+    st.markdown(_SCROLL_LISTENER, unsafe_allow_html=True)

@@ -2,6 +2,7 @@
 page_quiz.py - 問題出題・解答・結果ページ
 """
 import streamlit as st
+import streamlit.components.v1 as components
 from .constants import SUBJECT_MAP
 from .db import (
     load_progress, save_progress_item,
@@ -11,6 +12,15 @@ from .utils import render_footer
 
 
 def render_quiz(questions, progress):
+    # 次の問題へ進んだ直後のみ先頭にスクロール
+    if st.session_state.pop("scroll_to_top", False):
+        components.html(
+            "<script>setTimeout(function(){"
+            "window.parent.postMessage({t:'sc',v:'top'},'*');"
+            "},300);</script>",
+            height=1,
+        )
+
     qs    = st.session_state.quiz_questions
     total = len(qs)
 
@@ -54,10 +64,26 @@ def render_quiz(questions, progress):
     q_subj = SUBJECT_MAP.get(q["subject"], {"name": ""})
     labels = ["A", "B", "C", "D", "E"]
 
+    is_fill_blank = "___" in q["question"]
+
+    _blank_html = (
+        '<span style="display:inline-block;min-width:80px;border-bottom:2px solid #a594ff;'
+        'color:#a594ff;font-weight:700;text-align:center;padding:0 6px;margin:0 2px;">'
+        '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>'
+    )
+    display_q = q["question"].replace("___", _blank_html) if is_fill_blank else q["question"]
+
+    q_type_label = "穴埋め" if is_fill_blank else "選択"
     st.markdown(f"""
     <div class="question-card">
-        <div class="question-number">Q {str(idx + 1).zfill(2)} -- {q_subj['name']}</div>
-        <div class="question-text">{q['question']}</div>
+        <div class="question-number">
+            Q {str(idx + 1).zfill(2)} -- {q_subj['name']}
+            <span style="font-size:10px;background:rgba(165,148,255,0.15);color:#a594ff;
+                border-radius:4px;padding:2px 7px;margin-left:8px;font-family:'DM Mono',monospace;">
+                {q_type_label}
+            </span>
+        </div>
+        <div class="question-text">{display_q}</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -85,11 +111,29 @@ def render_quiz(questions, progress):
             save_session_item(st.session_state.quiz_session_key, idx, total, st.session_state.quiz_score)
             st.session_state.selected_option = choice
             st.session_state.answered        = True
+            st.session_state.just_answered   = True
             st.rerun()
 
     else:
-        selected   = st.session_state.selected_option
-        is_correct = (selected == q["answer"])
+        selected      = st.session_state.selected_option
+        is_correct    = (selected == q["answer"])
+        just_answered = st.session_state.pop("just_answered", False)  # ここで読み出し＆クリア
+
+        # 穴埋め問題は問題文に選んだ答えを埋めて再表示
+        if is_fill_blank:
+            fill_color = "#2ecc71" if is_correct else "#e74c3c"
+            filled_html = (
+                f'<span style="display:inline-block;min-width:80px;border-bottom:2px solid {fill_color};'
+                f'color:{fill_color};font-weight:700;text-align:center;padding:0 6px;margin:0 2px;">'
+                f'{q["options"][selected]}</span>'
+            )
+            answered_q = q["question"].replace("___", filled_html)
+            st.markdown(f"""
+            <div style="background:#1a1a2e;border:1px solid rgba(255,255,255,0.08);
+                border-radius:10px;padding:14px 18px;margin:8px 0;font-size:14px;color:#c0c0e0;line-height:1.8;">
+                {answered_q}
+            </div>
+            """, unsafe_allow_html=True)
 
         for i, opt in enumerate(q["options"]):
             if i == q["answer"]:
@@ -106,10 +150,10 @@ def render_quiz(questions, progress):
             """, unsafe_allow_html=True)
 
         if is_correct:
-            st.markdown('<div class="correct-box">正解！</div>', unsafe_allow_html=True)
+            st.markdown('<div id="explanation-anchor" class="correct-box">正解！</div>', unsafe_allow_html=True)
         else:
             correct_text = q["options"][q["answer"]]
-            st.markdown(f'<div class="wrong-box">不正解  正解：{labels[q["answer"]]}  {correct_text}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div id="explanation-anchor" class="wrong-box">不正解  正解：{labels[q["answer"]]}  {correct_text}</div>', unsafe_allow_html=True)
 
         st.markdown(f"""
         <div class="explanation-box">
@@ -118,9 +162,17 @@ def render_quiz(questions, progress):
         </div>
         """, unsafe_allow_html=True)
 
+        if just_answered:
+            components.html(
+                "<script>setTimeout(function(){"
+                "window.parent.postMessage({t:'sc',v:'explanation-anchor'},'*');"
+                "},300);</script>",
+                height=1,
+            )
+
         st.write("")
         next_label = "次の問題 →" if idx + 1 < total else "結果を見る"
-        if st.button(next_label, key=f"next_{idx}"):
+        if st.button(next_label, key=f"next_{idx}", disabled=just_answered):
             if idx + 1 >= total:
                 clear_session(st.session_state.quiz_session_key)
                 st.session_state.page = "result"
@@ -128,6 +180,7 @@ def render_quiz(questions, progress):
                 st.session_state.quiz_index     += 1
                 st.session_state.answered        = False
                 st.session_state.selected_option = None
+                st.session_state.scroll_to_top   = True
             st.rerun()
 
 

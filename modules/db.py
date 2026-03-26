@@ -7,7 +7,7 @@ db.py - Supabase接続 + キャッシュ付きデータアクセス層
 import json
 import streamlit as st
 from datetime import datetime
-from .constants import CACHE_Q, CACHE_P, CACHE_AD
+from .constants import CACHE_Q, CACHE_P, CACHE_AD, SAMPLE_QUESTIONS
 
 
 # ── Supabase クライアント
@@ -55,11 +55,13 @@ def load_questions() -> list:
                 "answer":      r["answer"],
                 "explanation": r["explanation"],
             })
+        if not result:
+            return SAMPLE_QUESTIONS
         st.session_state[CACHE_Q] = result
         return result
     except Exception as e:
         st.error(f"問題データの読み込みエラー: {e}")
-        return []
+        return SAMPLE_QUESTIONS
 
 
 def save_questions(qs: list):
