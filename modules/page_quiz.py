@@ -15,15 +15,9 @@ def render_quiz(questions, progress):
     # 次の問題へ進んだ直後のみ先頭にスクロール
     if st.session_state.pop("scroll_to_top", False):
         components.html(
-            "<script>(function(){"
-            "var ss=['[data-testid=\"stAppViewContainer\"]','section.main','.main','.stApp','body'];"
-            "function run(){"
-            "for(var i=0;i<ss.length;i++){"
-            "var el=window.parent.document.querySelector(ss[i]);"
-            "if(el&&el.scrollHeight>el.clientHeight){el.scrollTo(0,0);return;}}"
-            "window.parent.scrollTo(0,0);}"
-            "setTimeout(run,300);"
-            "})();</script>",
+            "<script>setTimeout(function(){"
+            "window.parent.postMessage({t:'sc',v:'top'},'*');"
+            "},300);</script>",
             height=1,
         )
 
@@ -170,14 +164,9 @@ def render_quiz(questions, progress):
 
         if just_answered:
             components.html(
-                "<script>(function(){"
-                "var n=0;"
-                "var t=setInterval(function(){"
-                "var el=window.parent.document.getElementById('explanation-anchor');"
-                "if(el){el.scrollIntoView({behavior:'smooth',block:'start'});clearInterval(t);}"
-                "else if(++n>=20){clearInterval(t);}"
-                "},100);"
-                "})();</script>",
+                "<script>setTimeout(function(){"
+                "window.parent.postMessage({t:'sc',v:'explanation-anchor'},'*');"
+                "},300);</script>",
                 height=1,
             )
 
