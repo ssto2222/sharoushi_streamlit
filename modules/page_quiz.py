@@ -16,7 +16,10 @@ def render_quiz(questions, progress):
     if st.session_state.pop("scroll_to_top", False):
         components.html(
             "<script>setTimeout(function(){"
-            "try{window.parent.scrollTo(0,0);}catch(e){}"
+            "try{"
+            "var el=window.parent.document.getElementById('question-anchor');"
+            "if(el)el.scrollIntoView({behavior:'smooth',block:'start'});"
+            "}catch(e){}"
             "},100);</script>",
             height=1,
         )
@@ -75,7 +78,7 @@ def render_quiz(questions, progress):
 
     q_type_label = "穴埋め" if is_fill_blank else "選択"
     st.markdown(f"""
-    <div class="question-card">
+    <div id="question-anchor" class="question-card">
         <div class="question-number">
             Q {str(idx + 1).zfill(2)} -- {q_subj['name']}
             <span style="font-size:10px;background:rgba(165,148,255,0.15);color:#a594ff;
