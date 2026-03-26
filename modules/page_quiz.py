@@ -16,8 +16,8 @@ def render_quiz(questions, progress):
     if st.session_state.pop("scroll_to_top", False):
         components.html(
             "<script>setTimeout(function(){"
-            "window.parent.postMessage({t:'sc',v:'top'},'*');"
-            "},300);</script>",
+            "try{window.parent.scrollTo(0,0);}catch(e){}"
+            "},100);</script>",
             height=1,
         )
 
@@ -165,8 +165,11 @@ def render_quiz(questions, progress):
         if just_answered:
             components.html(
                 "<script>setTimeout(function(){"
-                "window.parent.postMessage({t:'sc',v:'explanation-anchor'},'*');"
-                "},300);</script>",
+                "try{"
+                "var el=window.parent.document.getElementById('explanation-anchor');"
+                "if(el)el.scrollIntoView({behavior:'smooth',block:'start'});"
+                "}catch(e){}"
+                "},400);</script>",
                 height=1,
             )
 
