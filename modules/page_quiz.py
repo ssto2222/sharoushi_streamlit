@@ -15,7 +15,10 @@ def render_quiz(questions, progress):
     # 次の問題へ進んだ直後のみ先頭にスクロール
     if st.session_state.pop("scroll_to_top", False):
         components.html(
-            "<script>window.parent.document.querySelector('section.main').scrollTo(0,0);</script>",
+            "<script>setTimeout(function(){"
+            "var m=window.parent.document.querySelector('.main');"
+            "if(m)m.scrollTo(0,0);else window.parent.scrollTo(0,0);"
+            "},100);</script>",
             height=0,
         )
 
@@ -113,8 +116,9 @@ def render_quiz(questions, progress):
             st.rerun()
 
     else:
-        selected   = st.session_state.selected_option
-        is_correct = (selected == q["answer"])
+        selected      = st.session_state.selected_option
+        is_correct    = (selected == q["answer"])
+        just_answered = st.session_state.pop("just_answered", False)  # ここで読み出し＆クリア
 
         # 穴埋め問題は問題文に選んだ答えを埋めて再表示
         if is_fill_blank:
@@ -161,18 +165,15 @@ def render_quiz(questions, progress):
 
         if just_answered:
             components.html(
-                "<script>"
+                "<script>setTimeout(function(){"
                 "var el=window.parent.document.getElementById('explanation-anchor');"
                 "if(el)el.scrollIntoView({behavior:'smooth',block:'start'});"
-                "</script>",
+                "},300);</script>",
                 height=0,
             )
 
         st.write("")
-        next_label    = "次の問題 →" if idx + 1 < total else "結果を見る"
-        just_answered = st.session_state.get("just_answered", False)
-        if just_answered:
-            st.session_state.just_answered = False
+        next_label = "次の問題 →" if idx + 1 < total else "結果を見る"
         if st.button(next_label, key=f"next_{idx}", disabled=just_answered):
             if idx + 1 >= total:
                 clear_session(st.session_state.quiz_session_key)
