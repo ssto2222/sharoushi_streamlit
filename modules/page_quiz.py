@@ -12,11 +12,15 @@ from .utils import render_footer
 
 
 def render_quiz(questions, progress):
-    # 次の問題へ進んだ直後のみ先頭にスクロール
+    # 次の問題へ進んだ直後のみ戻るボタン直下までスクロール
     if st.session_state.pop("scroll_to_top", False):
         components.html(
             "<script>setTimeout(function(){"
-            "try{window.parent.scrollTo({top:0,behavior:'smooth'});}catch(e){}"
+            "try{"
+            "var el=window.parent.document.getElementById('quiz-content-top');"
+            "if(el){el.scrollIntoView({behavior:'smooth',block:'start'});}else{"
+            "window.parent.scrollTo({top:0,behavior:'smooth'});}"
+            "}catch(e){}"
             "},300);</script>",
             height=1,
         )
@@ -56,6 +60,7 @@ def render_quiz(questions, progress):
     with col_meta:
         st.markdown(f"**{subj_info['name']}**　`{idx + 1} / {total} 問`")
 
+    st.markdown('<div id="quiz-content-top"></div>', unsafe_allow_html=True)
     bar_pct = round((idx + 1) / total * 100)
     st.markdown(f'<div class="progress-outer"><div class="progress-inner" style="width:{bar_pct}%"></div></div>', unsafe_allow_html=True)
     st.write("")
