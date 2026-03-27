@@ -18,13 +18,9 @@ def render_quiz(questions, progress):
             "<script>setTimeout(function(){"
             "try{"
             "var el=window.parent.document.getElementById('question-number-anchor');"
-            "if(el){"
-            "var rect=el.getBoundingClientRect();"
-            "var scrollTop=window.parent.pageYOffset||window.parent.document.documentElement.scrollTop;"
-            "window.parent.scrollTo({top:scrollTop+rect.top-10,behavior:'smooth'});"
-            "}"
+            "if(el)el.scrollIntoView({behavior:'smooth',block:'start'});"
             "}catch(e){}"
-            "},200);</script>",
+            "},300);</script>",
             height=1,
         )
 
