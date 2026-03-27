@@ -15,13 +15,19 @@ def render_quiz(questions, progress):
     # 次の問題へ進んだ直後のみ戻るボタン直下までスクロール
     if st.session_state.pop("scroll_to_top", False):
         components.html(
-            "<script>setTimeout(function(){"
+            "<script>"
+            "(function(){"
+            "var attempts=0;"
+            "function tryScroll(){"
             "try{"
             "var el=window.parent.document.getElementById('quiz-content-top');"
-            "if(el){el.scrollIntoView({behavior:'smooth',block:'start'});}else{"
-            "window.parent.scrollTo({top:0,behavior:'smooth'});}"
-            "}catch(e){}"
-            "},300);</script>",
+            "if(el){el.scrollIntoView({behavior:'smooth',block:'start'});return;}"
+            "}catch(e){return;}"
+            "if(++attempts<20)setTimeout(tryScroll,100);"
+            "}"
+            "setTimeout(tryScroll,100);"
+            "})();"
+            "</script>",
             height=1,
         )
 
