@@ -16,10 +16,7 @@ def render_quiz(questions, progress):
     if st.session_state.pop("scroll_to_top", False):
         components.html(
             "<script>setTimeout(function(){"
-            "try{"
-            "var el=window.parent.document.getElementById('question-number-anchor');"
-            "if(el)el.scrollIntoView({behavior:'smooth',block:'start'});"
-            "}catch(e){}"
+            "try{window.parent.scrollTo({top:0,behavior:'smooth'});}catch(e){}"
             "},300);</script>",
             height=1,
         )
