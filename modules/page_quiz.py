@@ -12,7 +12,7 @@ from .utils import render_footer
 
 
 def render_quiz(questions, progress):
-    # 次の問題へ進んだ直後のみ戻るボタン直下までスクロール
+    # 次の問題へ進んだ直後のみ先頭までスクロール
     if st.session_state.pop("scroll_to_top", False):
         components.html(
             "<script>"
@@ -56,24 +56,29 @@ def render_quiz(questions, progress):
     idx       = st.session_state.quiz_index
     subj_info = SUBJECT_MAP.get(st.session_state.quiz_subject, {"name": "全科目", "short": "--"})
 
-    col_back, col_meta = st.columns([1, 5])
-    if col_back.button("← 戻る"):
+    # 戻るボタン
+    if st.button("← 戻る", key="back_btn"):
         save_session_item(st.session_state.quiz_session_key, idx, total, st.session_state.quiz_score)
         st.session_state.page              = "home"
         st.session_state.session_confirmed = False
         st.rerun()
 
-    with col_meta:
-        st.markdown(f"**{subj_info['name']}**　`{idx + 1} / {total} 問`")
-
     st.markdown('<div id="quiz-content-top"></div>', unsafe_allow_html=True)
-    bar_pct = round((idx + 1) / total * 100)
-    st.markdown(f'<div class="progress-outer"><div class="progress-inner" style="width:{bar_pct}%"></div></div>', unsafe_allow_html=True)
-    st.write("")
 
     q      = qs[idx]
     q_subj = SUBJECT_MAP.get(q["subject"], {"name": ""})
-    labels = ["A", "B", "C", "D", "E"]
+    labels_ja = ["ア", "イ", "ウ", "エ", "オ"]
+
+    # 問題番号 + 科目バッジ + プログレスバー
+    bar_pct = round((idx + 1) / total * 100)
+    st.markdown(f"""
+    <div class="quiz-meta-row">
+        <span class="quiz-meta-num">問題 {idx + 1} / {total}</span>
+        <span class="subject-pill">{q_subj['name']}</span>
+    </div>
+    <div class="progress-outer"><div class="progress-inner" style="width:{bar_pct}%"></div></div>
+    """, unsafe_allow_html=True)
+    st.write("")
 
     is_fill_blank = "___" in q["question"]
 
@@ -84,46 +89,79 @@ def render_quiz(questions, progress):
     )
     display_q = q["question"].replace("___", _blank_html) if is_fill_blank else q["question"]
 
-    q_type_label = "穴埋め" if is_fill_blank else "選択"
+    # 問題文カード
     st.markdown(f"""
-    <div id="question-anchor" class="question-card">
-        <div id="question-number-anchor" class="question-number">
-            Q {str(idx + 1).zfill(2)} -- {q_subj['name']}
-            <span style="font-size:10px;background:rgba(165,148,255,0.15);color:#a594ff;
-                border-radius:4px;padding:2px 7px;margin-left:8px;font-family:'DM Mono',monospace;">
-                {q_type_label}
-            </span>
-        </div>
+    <div class="question-card">
         <div class="question-text">{display_q}</div>
     </div>
     """, unsafe_allow_html=True)
 
     if not st.session_state.answered:
-        choice = st.radio(
-            "選択してください",
-            options=list(range(len(q["options"]))),
-            format_func=lambda i: f"{labels[i]}  {q['options'][i]}",
-            key=f"radio_{idx}",
-            label_visibility="collapsed",
-        )
-        if st.button("解答する", key=f"answer_{idx}"):
-            is_correct = (choice == q["answer"])
-            prog       = load_progress()
-            existing   = prog.get(q["id"], {"correct": False, "count": 0, "wrong_count": 0})
-            new_count  = existing["count"] + 1
-            new_wrong  = existing["wrong_count"]
-            if is_correct:
-                new_correct = True
-                st.session_state.quiz_score += 1
-            else:
-                new_correct = False
-                new_wrong  += 1
-            save_progress_item(q["id"], new_correct, new_count, new_wrong)
-            save_session_item(st.session_state.quiz_session_key, idx, total, st.session_state.quiz_score)
-            st.session_state.selected_option = choice
-            st.session_state.answered        = True
-            st.session_state.just_answered   = True
-            st.rerun()
+        # temp_selection 初期化
+        if f"temp_sel_{idx}" not in st.session_state:
+            st.session_state[f"temp_sel_{idx}"] = None
+
+        temp = st.session_state[f"temp_sel_{idx}"]
+
+        # 選択肢カード（ボタン形式）
+        for i, opt in enumerate(q["options"]):
+            is_selected = (temp == i)
+            label_style = (
+                'background:rgba(124,106,245,0.25);color:#a594ff;'
+                if is_selected else
+                'background:rgba(255,255,255,0.07);color:#9090b8;'
+            )
+            card_style = (
+                'background:rgba(124,106,245,0.10);border:1.5px solid #7c6af5;'
+                if is_selected else
+                'background:#1a1a2e;border:1px solid rgba(255,255,255,0.08);'
+            )
+            st.markdown(f"""
+            <div style="{card_style}border-radius:12px;padding:0;margin:5px 0;">
+            </div>
+            """, unsafe_allow_html=True)
+            # ボタンでクリック検知（カード風に見せるため use_container_width）
+            col_label, col_text = st.columns([1, 11])
+            with col_label:
+                st.markdown(f'<div style="display:flex;align-items:center;justify-content:center;height:48px;">'
+                            f'<span style="{label_style}display:inline-flex;align-items:center;justify-content:center;'
+                            f'width:28px;height:28px;border-radius:6px;font-size:13px;font-weight:600;">'
+                            f'{labels_ja[i]}</span></div>', unsafe_allow_html=True)
+            with col_text:
+                if st.button(opt, key=f"opt_{idx}_{i}", use_container_width=True):
+                    st.session_state[f"temp_sel_{idx}"] = i
+                    st.rerun()
+
+        st.write("")
+
+        # 解答を確認するボタン
+        if temp is not None:
+            if st.button("解答を確認する", key=f"answer_{idx}", use_container_width=True):
+                choice     = temp
+                is_correct = (choice == q["answer"])
+                prog       = load_progress()
+                existing   = prog.get(q["id"], {"correct": False, "count": 0, "wrong_count": 0})
+                new_count  = existing["count"] + 1
+                new_wrong  = existing["wrong_count"]
+                if is_correct:
+                    new_correct = True
+                    st.session_state.quiz_score += 1
+                else:
+                    new_correct = False
+                    new_wrong  += 1
+                save_progress_item(q["id"], new_correct, new_count, new_wrong)
+                save_session_item(st.session_state.quiz_session_key, idx, total, st.session_state.quiz_score)
+                st.session_state.selected_option = choice
+                st.session_state.answered        = True
+                st.session_state.just_answered   = True
+                st.rerun()
+        else:
+            st.markdown("""
+            <div style="background:#1a1a2e;border:1px solid rgba(255,255,255,0.06);border-radius:12px;
+                padding:14px;text-align:center;color:#4a4a6a;font-size:14px;margin-top:4px;cursor:default;">
+                解答を確認する
+            </div>
+            """, unsafe_allow_html=True)
 
     else:
         selected      = st.session_state.selected_option
@@ -141,34 +179,49 @@ def render_quiz(questions, progress):
             answered_q = q["question"].replace("___", filled_html)
             st.markdown(f"""
             <div style="background:#1a1a2e;border:1px solid rgba(255,255,255,0.08);
-                border-radius:10px;padding:14px 18px;margin:8px 0;font-size:14px;color:#c0c0e0;line-height:1.8;">
+                border-radius:12px;padding:14px 18px;margin:8px 0;font-size:14px;color:#c0c0e0;line-height:1.8;">
                 {answered_q}
             </div>
             """, unsafe_allow_html=True)
 
+        # 選択肢（回答後：色付きカード）
         for i, opt in enumerate(q["options"]):
-            if i == q["answer"]:
-                icon = "OK"
+            if i == q["answer"] and i == selected:
+                # 正解を選んだ場合
+                card_cls  = "option-card-correct"
+                lbl_cls   = "option-label-correct"
+                marker    = " ✓"
+            elif i == q["answer"]:
+                # 正解（選んでいない場合でも緑表示）
+                card_cls  = "option-card-correct"
+                lbl_cls   = "option-label-correct"
+                marker    = " ✓"
             elif i == selected and not is_correct:
-                icon = "NG"
+                # 誤答を選んだ
+                card_cls  = "option-card-wrong"
+                lbl_cls   = "option-label-wrong"
+                marker    = " ✗"
             else:
-                icon = "  "
+                card_cls  = "option-card"
+                lbl_cls   = "option-label"
+                marker    = ""
             st.markdown(f"""
-            <div style="background:#1a1a2e;border:1px solid rgba(255,255,255,0.08);
-                border-radius:10px;padding:12px 18px;margin:6px 0;font-size:14px;color:#c0c0e0;">
-                {icon} {labels[i]}  {opt}
+            <div class="{card_cls}">
+                <span class="{lbl_cls}">{labels_ja[i]}</span>
+                <span>{opt}{marker}</span>
             </div>
             """, unsafe_allow_html=True)
 
+        # 結果バナー
         if is_correct:
-            st.markdown('<div id="explanation-anchor" class="correct-box">正解！</div>', unsafe_allow_html=True)
+            st.markdown('<div id="explanation-anchor" class="result-correct">✓ 正解</div>', unsafe_allow_html=True)
         else:
-            correct_text = q["options"][q["answer"]]
-            st.markdown(f'<div id="explanation-anchor" class="wrong-box">不正解  正解：{labels[q["answer"]]}  {correct_text}</div>', unsafe_allow_html=True)
+            st.markdown('<div id="explanation-anchor" class="result-wrong">✗ 不正解</div>', unsafe_allow_html=True)
 
+        # 解説
         st.markdown(f"""
         <div class="explanation-box">
-            <div class="explanation-label">EXPLANATION</div>
+            <div class="explanation-label">解説</div>
             {q['explanation']}
         </div>
         """, unsafe_allow_html=True)
@@ -186,7 +239,7 @@ def render_quiz(questions, progress):
 
         st.write("")
         next_label = "次の問題 →" if idx + 1 < total else "結果を見る"
-        if st.button(next_label, key=f"next_{idx}"):
+        if st.button(next_label, key=f"next_{idx}", use_container_width=True):
             if idx + 1 >= total:
                 clear_session(st.session_state.quiz_session_key)
                 st.session_state.page = "result"
