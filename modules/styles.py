@@ -29,9 +29,11 @@ section[data-testid="stSidebar"] * { color: #c8c8d8 !important; }
 .subject-card:hover { border-color: #7c6af5; }
 .subject-tag { display: inline-block; background: rgba(124,106,245,0.15); color: #a594ff; font-size: 10px; font-family: 'DM Mono', monospace; padding: 3px 10px; border-radius: 4px; letter-spacing: 1px; margin-bottom: 10px; }
 .wrong-tag { display: inline-block; background: rgba(231,76,60,0.1); color: #e74c3c; font-size: 10px; font-family: 'DM Mono', monospace; padding: 3px 10px; border-radius: 20px; margin-left: 8px; }
-.stRadio > div { gap: 8px !important; }
-.stRadio > div > label { background: #1a1a2e !important; border: 1px solid rgba(255,255,255,0.08) !important; border-radius: 10px !important; padding: 14px 18px !important; width: 100% !important; color: #c8c8e8 !important; transition: all 0.15s !important; font-size: 14px !important; line-height: 1.6 !important; }
-.stRadio > div > label:hover { border-color: #7c6af5 !important; background: rgba(124,106,245,0.08) !important; }
+.stRadio > div { gap: 6px !important; }
+.stRadio > div > label { background: #1e1e38 !important; border: 1px solid rgba(255,255,255,0.22) !important; border-radius: 12px !important; padding: 13px 18px !important; width: 100% !important; color: #e8e8f8 !important; transition: border-color 0.15s, background 0.15s !important; font-size: 15px !important; line-height: 1.7 !important; align-items: flex-start !important; cursor: pointer !important; }
+.stRadio > div > label:hover { border-color: rgba(124,106,245,0.7) !important; background: rgba(124,106,245,0.10) !important; }
+.stRadio > div > label > div:first-child { display: none !important; }
+.stRadio > div > label p { color: #e8e8f8 !important; font-size: 15px !important; line-height: 1.7 !important; margin: 0 !important; white-space: pre-wrap !important; word-break: break-word !important; }
 .option-card { background: #1e1e38; border: 1px solid rgba(255,255,255,0.18); border-radius: 12px; padding: 14px 18px; margin: 5px 0; font-size: 14px; color: #e0e0f2; line-height: 1.6; display: flex; align-items: flex-start; gap: 12px; }
 .option-card:hover { border-color: #7c6af5; background: rgba(124,106,245,0.06); }
 .option-card-selected { background: rgba(124,106,245,0.12); border: 1.5px solid #7c6af5; border-radius: 12px; padding: 14px 18px; margin: 5px 0; font-size: 14px; color: #c8c8e8; line-height: 1.6; display: flex; align-items: flex-start; gap: 12px; }

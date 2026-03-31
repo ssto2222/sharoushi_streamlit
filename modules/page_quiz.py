@@ -97,106 +97,36 @@ def render_quiz(questions, progress):
     """, unsafe_allow_html=True)
 
     if not st.session_state.answered:
-        # temp_selection 初期化
-        if f"temp_sel_{idx}" not in st.session_state:
-            st.session_state[f"temp_sel_{idx}"] = None
-
-        temp = st.session_state[f"temp_sel_{idx}"]
-
-        # 選択肢カード — ループ前にボタンをカードスタイルへ上書き
-        st.markdown("""<style>
-.stButton > button {
-    background: #1e1e38 !important;
-    border: 1px solid rgba(255,255,255,0.22) !important;
-    color: #e4e4f4 !important;
-    text-align: left !important;
-    justify-content: flex-start !important;
-    font-size: 15px !important;
-    padding: 13px 18px !important;
-    border-radius: 12px !important;
-    line-height: 1.7 !important;
-    white-space: normal !important;
-    height: auto !important;
-    min-height: 52px !important;
-}
-.stButton > button:hover {
-    background: rgba(124,106,245,0.14) !important;
-    border-color: rgba(124,106,245,0.7) !important;
-    color: #e8e8f8 !important;
-}
-</style>""", unsafe_allow_html=True)
-
-        for i, opt in enumerate(q["options"]):
-            is_selected = (temp == i)
-            if is_selected:
-                # 選択済み → HTMLカード（ア+テキストをflexで同行表示）
-                st.markdown(f"""
-                <div style="background:rgba(124,106,245,0.12);border:1.5px solid #7c6af5;
-                    border-radius:12px;padding:13px 18px;margin:5px 0;
-                    display:flex;align-items:flex-start;gap:12px;
-                    font-size:15px;color:#e4e4f4;line-height:1.7;">
-                    <span style="background:rgba(124,106,245,0.35);color:#c8b8ff;
-                        display:inline-flex;align-items:center;justify-content:center;
-                        min-width:28px;height:28px;border-radius:6px;
-                        font-size:13px;font-weight:700;flex-shrink:0;margin-top:2px;">{labels_ja[i]}</span>
-                    <span style="flex:1;">{opt}</span>
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                # 未選択 → クリッカブルなボタン（ラベル+テキストを1行に統合）
-                if st.button(f"{labels_ja[i]}　{opt}", key=f"opt_{idx}_{i}", use_container_width=True):
-                    st.session_state[f"temp_sel_{idx}"] = i
-                    st.rerun()
-
-        # ループ後にグローバルボタンスタイルを復元
-        st.markdown("""<style>
-.stButton > button {
-    background: #7c6af5 !important;
-    border: none !important;
-    color: white !important;
-    text-align: center !important;
-    justify-content: center !important;
-    font-size: 14px !important;
-    padding: 10px 24px !important;
-    border-radius: 10px !important;
-    line-height: normal !important;
-    white-space: nowrap !important;
-    height: auto !important;
-    min-height: auto !important;
-}
-.stButton > button:hover { background: #9580ff !important; transform: translateY(-1px) !important; }
-</style>""", unsafe_allow_html=True)
+        # 選択肢をラジオボタン（CSSでカード化）で表示
+        choice = st.radio(
+            "選択してください",
+            options=list(range(len(q["options"]))),
+            format_func=lambda i: f"{labels_ja[i]}　　{q['options'][i]}",
+            key=f"radio_{idx}",
+            label_visibility="collapsed",
+        )
 
         st.write("")
 
         # 解答を確認するボタン
-        if temp is not None:
-            if st.button("解答を確認する", key=f"answer_{idx}", use_container_width=True):
-                choice     = temp
-                is_correct = (choice == q["answer"])
-                prog       = load_progress()
-                existing   = prog.get(q["id"], {"correct": False, "count": 0, "wrong_count": 0})
-                new_count  = existing["count"] + 1
-                new_wrong  = existing["wrong_count"]
-                if is_correct:
-                    new_correct = True
-                    st.session_state.quiz_score += 1
-                else:
-                    new_correct = False
-                    new_wrong  += 1
-                save_progress_item(q["id"], new_correct, new_count, new_wrong)
-                save_session_item(st.session_state.quiz_session_key, idx, total, st.session_state.quiz_score)
-                st.session_state.selected_option = choice
-                st.session_state.answered        = True
-                st.session_state.just_answered   = True
-                st.rerun()
-        else:
-            st.markdown("""
-            <div style="background:#1a1a2e;border:1px solid rgba(255,255,255,0.06);border-radius:12px;
-                padding:14px;text-align:center;color:#4a4a6a;font-size:14px;margin-top:4px;cursor:default;">
-                解答を確認する
-            </div>
-            """, unsafe_allow_html=True)
+        if st.button("解答を確認する", key=f"answer_{idx}", use_container_width=True):
+            is_correct = (choice == q["answer"])
+            prog       = load_progress()
+            existing   = prog.get(q["id"], {"correct": False, "count": 0, "wrong_count": 0})
+            new_count  = existing["count"] + 1
+            new_wrong  = existing["wrong_count"]
+            if is_correct:
+                new_correct = True
+                st.session_state.quiz_score += 1
+            else:
+                new_correct = False
+                new_wrong  += 1
+            save_progress_item(q["id"], new_correct, new_count, new_wrong)
+            save_session_item(st.session_state.quiz_session_key, idx, total, st.session_state.quiz_score)
+            st.session_state.selected_option = choice
+            st.session_state.answered        = True
+            st.session_state.just_answered   = True
+            st.rerun()
 
     else:
         selected      = st.session_state.selected_option
