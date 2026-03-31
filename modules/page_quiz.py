@@ -103,34 +103,69 @@ def render_quiz(questions, progress):
 
         temp = st.session_state[f"temp_sel_{idx}"]
 
-        # 選択肢カード（ボタン形式）
+        # 選択肢カード — ループ前にボタンをカードスタイルへ上書き
+        st.markdown("""<style>
+.stButton > button {
+    background: #1e1e38 !important;
+    border: 1px solid rgba(255,255,255,0.22) !important;
+    color: #e4e4f4 !important;
+    text-align: left !important;
+    justify-content: flex-start !important;
+    font-size: 15px !important;
+    padding: 13px 18px !important;
+    border-radius: 12px !important;
+    line-height: 1.7 !important;
+    white-space: normal !important;
+    height: auto !important;
+    min-height: 52px !important;
+}
+.stButton > button:hover {
+    background: rgba(124,106,245,0.14) !important;
+    border-color: rgba(124,106,245,0.7) !important;
+    color: #e8e8f8 !important;
+}
+</style>""", unsafe_allow_html=True)
+
         for i, opt in enumerate(q["options"]):
             is_selected = (temp == i)
-            label_style = (
-                'background:rgba(124,106,245,0.25);color:#a594ff;'
-                if is_selected else
-                'background:rgba(255,255,255,0.07);color:#9090b8;'
-            )
-            card_style = (
-                'background:rgba(124,106,245,0.10);border:1.5px solid #7c6af5;'
-                if is_selected else
-                'background:#1a1a2e;border:1px solid rgba(255,255,255,0.08);'
-            )
-            st.markdown(f"""
-            <div style="{card_style}border-radius:12px;padding:0;margin:5px 0;">
-            </div>
-            """, unsafe_allow_html=True)
-            # ボタンでクリック検知（カード風に見せるため use_container_width）
-            col_label, col_text = st.columns([1, 11])
-            with col_label:
-                st.markdown(f'<div style="display:flex;align-items:center;justify-content:center;height:48px;">'
-                            f'<span style="{label_style}display:inline-flex;align-items:center;justify-content:center;'
-                            f'width:28px;height:28px;border-radius:6px;font-size:13px;font-weight:600;">'
-                            f'{labels_ja[i]}</span></div>', unsafe_allow_html=True)
-            with col_text:
-                if st.button(opt, key=f"opt_{idx}_{i}", use_container_width=True):
+            if is_selected:
+                # 選択済み → HTMLカード（ア+テキストをflexで同行表示）
+                st.markdown(f"""
+                <div style="background:rgba(124,106,245,0.12);border:1.5px solid #7c6af5;
+                    border-radius:12px;padding:13px 18px;margin:5px 0;
+                    display:flex;align-items:flex-start;gap:12px;
+                    font-size:15px;color:#e4e4f4;line-height:1.7;">
+                    <span style="background:rgba(124,106,245,0.35);color:#c8b8ff;
+                        display:inline-flex;align-items:center;justify-content:center;
+                        min-width:28px;height:28px;border-radius:6px;
+                        font-size:13px;font-weight:700;flex-shrink:0;margin-top:2px;">{labels_ja[i]}</span>
+                    <span style="flex:1;">{opt}</span>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                # 未選択 → クリッカブルなボタン（ラベル+テキストを1行に統合）
+                if st.button(f"{labels_ja[i]}　{opt}", key=f"opt_{idx}_{i}", use_container_width=True):
                     st.session_state[f"temp_sel_{idx}"] = i
                     st.rerun()
+
+        # ループ後にグローバルボタンスタイルを復元
+        st.markdown("""<style>
+.stButton > button {
+    background: #7c6af5 !important;
+    border: none !important;
+    color: white !important;
+    text-align: center !important;
+    justify-content: center !important;
+    font-size: 14px !important;
+    padding: 10px 24px !important;
+    border-radius: 10px !important;
+    line-height: normal !important;
+    white-space: nowrap !important;
+    height: auto !important;
+    min-height: auto !important;
+}
+.stButton > button:hover { background: #9580ff !important; transform: translateY(-1px) !important; }
+</style>""", unsafe_allow_html=True)
 
         st.write("")
 
