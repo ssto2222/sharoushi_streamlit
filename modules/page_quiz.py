@@ -102,24 +102,47 @@ def render_quiz(questions, progress):
         if f"temp_sel_{idx}" not in st.session_state:
             st.session_state[f"temp_sel_{idx}"] = None
 
-        # HTMLフォームのGETパラメータ経由でクリックを検知
-        qp = st.query_params
-        if "sel_q" in qp and "sel_opt" in qp:
-            try:
-                if int(qp["sel_q"]) == idx:
-                    st.session_state[f"temp_sel_{idx}"] = int(qp["sel_opt"])
-                    st.query_params.clear()
-                    st.rerun()
-            except (ValueError, TypeError):
-                st.query_params.clear()
-
         temp = st.session_state[f"temp_sel_{idx}"]
+
+        # 選択肢ボタンのスタイル
+        st.markdown("""<style>
+/* 選択肢ボタン共通（テキスト折り返し・左揃え） */
+div[data-testid="stHorizontalBlock"] .stButton > button {
+    background: #1e1e38 !important;
+    border: 1px solid rgba(255,255,255,0.22) !important;
+    border-left: none !important;
+    border-radius: 0 12px 12px 0 !important;
+    color: #e4e4f4 !important;
+    text-align: left !important;
+    justify-content: flex-start !important;
+    font-size: 15px !important;
+    padding: 13px 16px !important;
+    line-height: 1.7 !important;
+    white-space: normal !important;
+    height: auto !important;
+    min-height: 52px !important;
+    width: 100% !important;
+}
+div[data-testid="stHorizontalBlock"] .stButton > button:hover {
+    background: rgba(124,106,245,0.14) !important;
+    border-color: rgba(124,106,245,0.7) !important;
+    color: #e8e8f8 !important;
+}
+/* バッジ列とボタン列の隙間をゼロに */
+div[data-testid="stHorizontalBlock"] {
+    gap: 0 !important;
+    align-items: stretch !important;
+}
+div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
+    padding: 0 !important;
+}
+</style>""", unsafe_allow_html=True)
 
         for i, opt in enumerate(q["options"]):
             is_selected = (temp == i)
             escaped_opt = _html.escape(opt)
             if is_selected:
-                # 選択済み → 紫枠カード
+                # 選択済み → 紫枠カード（HTMLレンダリング）
                 st.markdown(f"""
                 <div style="background:rgba(124,106,245,0.12);border:1.5px solid #7c6af5;
                     border-radius:12px;padding:13px 18px;margin:5px 0;
@@ -133,25 +156,27 @@ def render_quiz(questions, progress):
                 </div>
                 """, unsafe_allow_html=True)
             else:
-                # 未選択 → HTMLフォームボタン（選択済みと同じカードレイアウト）
-                st.markdown(f"""
-                <form action="" method="get" style="margin:0;padding:2.5px 0;">
-                    <input type="hidden" name="sel_q" value="{idx}">
-                    <input type="hidden" name="sel_opt" value="{i}">
-                    <button type="submit" style="width:100%;background:#1e1e38;
-                        border:1px solid rgba(255,255,255,0.22);border-radius:12px;
-                        padding:13px 18px;display:flex;align-items:flex-start;gap:12px;
-                        font-size:15px;color:#e4e4f4;line-height:1.7;
-                        cursor:pointer;text-align:left;box-sizing:border-box;
-                        font-family:'Noto Sans JP',sans-serif;">
+                # 未選択 → バッジ(HTML) + ボタン(st.button) をcolumnsで横並び
+                st.markdown('<div style="margin:2.5px 0;">', unsafe_allow_html=True)
+                col_badge, col_btn = st.columns([0.08, 0.92])
+                with col_badge:
+                    st.markdown(f"""
+                    <div style="background:#1e1e38;
+                        border:1px solid rgba(255,255,255,0.22);border-right:none;
+                        border-radius:12px 0 0 12px;min-height:52px;height:100%;
+                        display:flex;align-items:flex-start;justify-content:center;
+                        padding:15px 0 0 0;">
                         <span style="background:rgba(255,255,255,0.1);color:#d0d0e8;
                             display:inline-flex;align-items:center;justify-content:center;
-                            min-width:28px;height:28px;border-radius:6px;
-                            font-size:13px;font-weight:700;flex-shrink:0;margin-top:2px;">{labels_ja[i]}</span>
-                        <span style="flex:1;word-break:break-word;">{escaped_opt}</span>
-                    </button>
-                </form>
-                """, unsafe_allow_html=True)
+                            width:28px;height:28px;border-radius:6px;
+                            font-size:13px;font-weight:700;">{labels_ja[i]}</span>
+                    </div>
+                    """, unsafe_allow_html=True)
+                with col_btn:
+                    if st.button(opt, key=f"opt_{idx}_{i}", use_container_width=True):
+                        st.session_state[f"temp_sel_{idx}"] = i
+                        st.rerun()
+                st.markdown('</div>', unsafe_allow_html=True)
 
         st.write("")
 
