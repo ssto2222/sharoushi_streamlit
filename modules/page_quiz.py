@@ -160,7 +160,7 @@ def render_quiz(questions, progress):
     padding: 10px 24px !important;
     border-radius: 10px !important;
     line-height: normal !important;
-    white-space: nowrap !important;
+    white-space: normal !important;
     height: auto !important;
     min-height: auto !important;
 }
