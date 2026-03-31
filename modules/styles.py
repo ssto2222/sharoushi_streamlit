@@ -32,18 +32,18 @@ section[data-testid="stSidebar"] * { color: #c8c8d8 !important; }
 .stRadio > div { gap: 8px !important; }
 .stRadio > div > label { background: #1a1a2e !important; border: 1px solid rgba(255,255,255,0.08) !important; border-radius: 10px !important; padding: 14px 18px !important; width: 100% !important; color: #c8c8e8 !important; transition: all 0.15s !important; font-size: 14px !important; line-height: 1.6 !important; }
 .stRadio > div > label:hover { border-color: #7c6af5 !important; background: rgba(124,106,245,0.08) !important; }
-.option-card { background: #1a1a2e; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 14px 18px; margin: 5px 0; font-size: 14px; color: #c8c8e8; line-height: 1.6; display: flex; align-items: flex-start; gap: 12px; }
+.option-card { background: #1e1e38; border: 1px solid rgba(255,255,255,0.18); border-radius: 12px; padding: 14px 18px; margin: 5px 0; font-size: 14px; color: #e0e0f2; line-height: 1.6; display: flex; align-items: flex-start; gap: 12px; }
 .option-card:hover { border-color: #7c6af5; background: rgba(124,106,245,0.06); }
 .option-card-selected { background: rgba(124,106,245,0.12); border: 1.5px solid #7c6af5; border-radius: 12px; padding: 14px 18px; margin: 5px 0; font-size: 14px; color: #c8c8e8; line-height: 1.6; display: flex; align-items: flex-start; gap: 12px; }
 .option-card-correct { background: rgba(46,204,113,0.08); border: 1.5px solid #2ecc71; border-radius: 12px; padding: 14px 18px; margin: 5px 0; font-size: 14px; color: #2ecc71; line-height: 1.6; display: flex; align-items: flex-start; gap: 12px; }
 .option-card-wrong { background: rgba(231,76,60,0.08); border: 1.5px solid #e74c3c; border-radius: 12px; padding: 14px 18px; margin: 5px 0; font-size: 14px; color: #e74c3c; line-height: 1.6; display: flex; align-items: flex-start; gap: 12px; }
-.option-label { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 28px; background: rgba(255,255,255,0.07); border-radius: 6px; font-size: 13px; font-weight: 600; flex-shrink: 0; margin-top: 1px; }
+.option-label { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 28px; background: rgba(255,255,255,0.13); color: #d0d0e8; border-radius: 6px; font-size: 13px; font-weight: 600; flex-shrink: 0; margin-top: 1px; }
 .option-label-correct { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 28px; background: rgba(46,204,113,0.2); color: #2ecc71; border-radius: 6px; font-size: 13px; font-weight: 600; flex-shrink: 0; margin-top: 1px; }
 .option-label-wrong { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 28px; background: rgba(231,76,60,0.2); color: #e74c3c; border-radius: 6px; font-size: 13px; font-weight: 600; flex-shrink: 0; margin-top: 1px; }
 .result-correct { background: rgba(46,204,113,0.12); border: 1.5px solid #2ecc71; border-radius: 12px; padding: 16px; text-align: center; color: #2ecc71; font-size: 17px; font-weight: 700; margin: 14px 0; }
 .result-wrong { background: rgba(231,76,60,0.12); border: 1.5px solid #e74c3c; border-radius: 12px; padding: 16px; text-align: center; color: #e74c3c; font-size: 17px; font-weight: 700; margin: 14px 0; }
 .quiz-meta-row { display: flex; align-items: center; justify-content: space-between; margin: 10px 0 6px; }
-.quiz-meta-num { font-size: 14px; color: #9090b8; font-family: 'Noto Sans JP', sans-serif; }
+.quiz-meta-num { font-size: 14px; color: #b0b0d0; font-family: 'Noto Sans JP', sans-serif; }
 .subject-pill { display: inline-block; background: rgba(46,204,113,0.15); color: #2ecc71; border: 1px solid rgba(46,204,113,0.3); font-size: 12px; padding: 4px 12px; border-radius: 20px; font-weight: 500; }
 .confirm-btn-wrap { margin: 12px 0; }
 div[data-testid="stButton"].option-btn > button { background: #1a1a2e !important; border: 1px solid rgba(255,255,255,0.08) !important; color: #c8c8e8 !important; text-align: left !important; justify-content: flex-start !important; border-radius: 12px !important; padding: 14px 18px !important; font-size: 14px !important; line-height: 1.6 !important; }
