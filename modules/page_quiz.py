@@ -1,6 +1,7 @@
 """
 page_quiz.py - 問題出題・解答・結果ページ
 """
+import html as _html
 import streamlit as st
 import streamlit.components.v1 as components
 from .constants import SUBJECT_MAP
@@ -101,35 +102,24 @@ def render_quiz(questions, progress):
         if f"temp_sel_{idx}" not in st.session_state:
             st.session_state[f"temp_sel_{idx}"] = None
 
-        temp = st.session_state[f"temp_sel_{idx}"]
+        # HTMLフォームのGETパラメータ経由でクリックを検知
+        qp = st.query_params
+        if "sel_q" in qp and "sel_opt" in qp:
+            try:
+                if int(qp["sel_q"]) == idx:
+                    st.session_state[f"temp_sel_{idx}"] = int(qp["sel_opt"])
+                    st.query_params.clear()
+                    st.rerun()
+            except (ValueError, TypeError):
+                st.query_params.clear()
 
-        # 選択肢カード — ループ前にボタンをカードスタイルへ上書き
-        st.markdown("""<style>
-.stButton > button {
-    background: #1e1e38 !important;
-    border: 1px solid rgba(255,255,255,0.22) !important;
-    color: #e4e4f4 !important;
-    text-align: left !important;
-    justify-content: flex-start !important;
-    font-size: 15px !important;
-    padding: 13px 18px !important;
-    border-radius: 12px !important;
-    line-height: 1.7 !important;
-    white-space: normal !important;
-    height: auto !important;
-    min-height: 52px !important;
-}
-.stButton > button:hover {
-    background: rgba(124,106,245,0.14) !important;
-    border-color: rgba(124,106,245,0.7) !important;
-    color: #e8e8f8 !important;
-}
-</style>""", unsafe_allow_html=True)
+        temp = st.session_state[f"temp_sel_{idx}"]
 
         for i, opt in enumerate(q["options"]):
             is_selected = (temp == i)
+            escaped_opt = _html.escape(opt)
             if is_selected:
-                # 選択済み → HTMLカード（ア+テキストをflexで同行表示）
+                # 選択済み → 紫枠カード
                 st.markdown(f"""
                 <div style="background:rgba(124,106,245,0.12);border:1.5px solid #7c6af5;
                     border-radius:12px;padding:13px 18px;margin:5px 0;
@@ -139,33 +129,29 @@ def render_quiz(questions, progress):
                         display:inline-flex;align-items:center;justify-content:center;
                         min-width:28px;height:28px;border-radius:6px;
                         font-size:13px;font-weight:700;flex-shrink:0;margin-top:2px;">{labels_ja[i]}</span>
-                    <span style="flex:1;">{opt}</span>
+                    <span style="flex:1;">{escaped_opt}</span>
                 </div>
                 """, unsafe_allow_html=True)
             else:
-                # 未選択 → クリッカブルなボタン（ラベル+テキストを1行に統合）
-                if st.button(f"{labels_ja[i]}　{opt}", key=f"opt_{idx}_{i}", use_container_width=True):
-                    st.session_state[f"temp_sel_{idx}"] = i
-                    st.rerun()
-
-        # ループ後にグローバルボタンスタイルを復元
-        st.markdown("""<style>
-.stButton > button {
-    background: #7c6af5 !important;
-    border: none !important;
-    color: white !important;
-    text-align: center !important;
-    justify-content: center !important;
-    font-size: 14px !important;
-    padding: 10px 24px !important;
-    border-radius: 10px !important;
-    line-height: normal !important;
-    white-space: nowrap !important;
-    height: auto !important;
-    min-height: auto !important;
-}
-.stButton > button:hover { background: #9580ff !important; transform: translateY(-1px) !important; }
-</style>""", unsafe_allow_html=True)
+                # 未選択 → HTMLフォームボタン（選択済みと同じカードレイアウト）
+                st.markdown(f"""
+                <form action="" method="get" style="margin:0;padding:2.5px 0;">
+                    <input type="hidden" name="sel_q" value="{idx}">
+                    <input type="hidden" name="sel_opt" value="{i}">
+                    <button type="submit" style="width:100%;background:#1e1e38;
+                        border:1px solid rgba(255,255,255,0.22);border-radius:12px;
+                        padding:13px 18px;display:flex;align-items:flex-start;gap:12px;
+                        font-size:15px;color:#e4e4f4;line-height:1.7;
+                        cursor:pointer;text-align:left;box-sizing:border-box;
+                        font-family:'Noto Sans JP',sans-serif;">
+                        <span style="background:rgba(255,255,255,0.1);color:#d0d0e8;
+                            display:inline-flex;align-items:center;justify-content:center;
+                            min-width:28px;height:28px;border-radius:6px;
+                            font-size:13px;font-weight:700;flex-shrink:0;margin-top:2px;">{labels_ja[i]}</span>
+                        <span style="flex:1;word-break:break-word;">{escaped_opt}</span>
+                    </button>
+                </form>
+                """, unsafe_allow_html=True)
 
         st.write("")
 
